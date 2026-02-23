@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Plus, FileText, Briefcase, Trash2, ChevronRight, ChevronDown, X } from 'lucide-react';
-import { Job, Resume } from '../types';
+import { Plus, FileText, Briefcase, Trash2, ChevronRight, ChevronDown, X, Settings } from 'lucide-react';
+import { Job, Resume, CurrentProvider } from '../types';
 import { createJob, deleteJob, deleteResume } from '../api';
 
 interface SidebarProps {
@@ -13,6 +13,8 @@ interface SidebarProps {
   onJobCreated: (job: Job) => void;
   onJobDeleted: (jobId: number) => void;
   onResumeDeleted: (resumeId: number) => void;
+  currentProvider?: CurrentProvider | null;
+  onOpenSettings?: () => void;
   onNewResume: (jobId: number) => void;
 }
 
@@ -33,6 +35,8 @@ export function Sidebar({
   onJobDeleted,
   onResumeDeleted,
   onNewResume,
+  currentProvider,
+  onOpenSettings,
 }: SidebarProps) {
   const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
   const [showNewJobModal, setShowNewJobModal] = useState(false);
@@ -195,8 +199,28 @@ export function Sidebar({
           )}
         </div>
 
-        <div className="px-4 py-3 border-t border-gray-700 text-xs text-gray-500 text-center">
-          {jobs.length} 个岗位 · {resumes.length} 份简历
+        {/* Bottom: provider badge + settings */}
+        <div className="px-3 py-3 border-t border-gray-700 flex items-center justify-between gap-2">
+          <button
+            onClick={onOpenSettings}
+            className="flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-700 transition-colors text-left"
+            title="AI 模型设置"
+          >
+            <Settings size={13} className="text-gray-400 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              {currentProvider ? (
+                <>
+                  <p className="text-xs text-gray-300 truncate font-medium">
+                    {currentProvider.provider_name}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">{currentProvider.model}</p>
+                </>
+              ) : (
+                <p className="text-xs text-gray-500">点击配置模型</p>
+              )}
+            </div>
+          </button>
+          <span className="text-xs text-gray-600 flex-shrink-0">{jobs.length}岗·{resumes.length}历</span>
         </div>
       </div>
 

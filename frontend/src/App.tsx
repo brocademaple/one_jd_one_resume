@@ -3,8 +3,9 @@ import { Sidebar } from './components/Sidebar';
 import { JDPanel } from './components/JDPanel';
 import { ResumePanel } from './components/ResumePanel';
 import { ChatPanel } from './components/ChatPanel';
-import { Job, Resume } from './types';
-import { fetchJobs, fetchResumes, createResume } from './api';
+import { SettingsModal } from './components/SettingsModal';
+import { Job, Resume, CurrentProvider } from './types';
+import { fetchJobs, fetchResumes, createResume, fetchCurrentProvider } from './api';
 
 function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -12,8 +13,18 @@ function App() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [currentProvider, setCurrentProvider] = useState<CurrentProvider | null>(null);
 
-  // Load initial data
+  const loadProviderInfo = useCallback(async () => {
+    try {
+      const info = await fetchCurrentProvider();
+      setCurrentProvider(info);
+    } catch {
+      // silently ignore
+    }
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -23,6 +34,7 @@ function App() {
         ]);
         setJobs(jobsData);
         setResumes(resumesData);
+        await loadProviderInfo();
       } catch (err) {
         console.error('Failed to load data:', err);
       } finally {
@@ -30,11 +42,10 @@ function App() {
       }
     };
     load();
-  }, []);
+  }, [loadProviderInfo]);
 
   const handleSelectJob = useCallback((job: Job) => {
     setSelectedJob(job);
-    // Auto-select first resume for this job
     const jobResumes = resumes.filter(r => r.job_id === job.id);
     if (jobResumes.length > 0) {
       setSelectedResume(jobResumes[0]);
@@ -45,7 +56,6 @@ function App() {
 
   const handleSelectResume = useCallback((resume: Resume) => {
     setSelectedResume(resume);
-    // Also select the corresponding job
     const job = jobs.find(j => j.id === resume.job_id);
     if (job) setSelectedJob(job);
   }, [jobs]);
@@ -77,16 +87,12 @@ function App() {
 
   const handleResumeUpdated = useCallback((resume: Resume) => {
     setResumes(prev => prev.map(r => r.id === resume.id ? resume : r));
-    if (selectedResume?.id === resume.id) {
-      setSelectedResume(resume);
-    }
+    if (selectedResume?.id === resume.id) setSelectedResume(resume);
   }, [selectedResume]);
 
   const handleResumeDeleted = useCallback((resumeId: number) => {
     setResumes(prev => prev.filter(r => r.id !== resumeId));
-    if (selectedResume?.id === resumeId) {
-      setSelectedResume(null);
-    }
+    if (selectedResume?.id === resumeId) setSelectedResume(null);
   }, [selectedResume]);
 
   const handleNewResume = useCallback(async (jobId: number) => {
@@ -119,7 +125,6 @@ function App() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Sidebar */}
       <Sidebar
         jobs={jobs}
         resumes={resumes}
@@ -131,36 +136,38 @@ function App() {
         onJobDeleted={handleJobDeleted}
         onResumeDeleted={handleResumeDeleted}
         onNewResume={handleNewResume}
+        currentProvider={currentProvider}
+        onOpenSettings={() => setShowSettings(true)}
       />
 
-      {/* Main area - three panels */}
       <div className="flex-1 flex overflow-hidden">
-        {/* JD Panel */}
         <div className="w-[30%] min-w-[240px] overflow-hidden">
-          <JDPanel
-            job={selectedJob}
-            onJobUpdated={handleJobUpdated}
-          />
+          <JDPanel job={selectedJob} onJobUpdated={handleJobUpdated} />
         </div>
-
-        {/* Resume Panel */}
         <div className="w-[30%] min-w-[240px] overflow-hidden">
-          <ResumePanel
-            resume={selectedResume}
-            onResumeUpdated={handleResumeUpdated}
-          />
+          <ResumePanel resume={selectedResume} onResumeUpdated={handleResumeUpdated} />
         </div>
-
-        {/* Chat Panel */}
         <div className="flex-1 min-w-[300px] overflow-hidden">
           <ChatPanel
             jobId={selectedJob?.id ?? null}
             resumeId={selectedResume?.id ?? null}
             onResumeCreated={handleResumeCreated}
             onResumeUpdated={handleResumeUpdated}
+            currentProvider={currentProvider}
+            onOpenSettings={() => setShowSettings(true)}
           />
         </div>
       </div>
+
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          onSaved={() => {
+            setShowSettings(false);
+            loadProviderInfo();
+          }}
+        />
+      )}
     </div>
   );
 }

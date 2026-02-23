@@ -28,3 +28,32 @@ export interface ChatSession {
   resumeId: number;
   messages: Message[];
 }
+
+export interface ModelItem {
+  id: string;
+  name: string;
+}
+
+export interface ProviderConfig {
+  name: string;
+  name_cn: string;
+  type: string;
+  base_url?: string;
+  env_key: string;
+  models: ModelItem[];
+  default_model: string;
+}
+
+export interface SettingsResponse {
+  provider: string;
+  model: string;
+  api_keys_set: Record<string, string>;
+  providers: Record<string, ProviderConfig>;
+}
+
+export interface CurrentProvider {
+  provider: string;
+  provider_name: string;
+  model: string;
+  model_name: string;
+}

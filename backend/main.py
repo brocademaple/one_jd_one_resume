@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 import os
 
 from database import engine, Base
-from routers import jobs, resumes, chat, export
+from routers import jobs, resumes, chat, export, settings as settings_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -23,6 +23,7 @@ app.include_router(jobs.router)
 app.include_router(resumes.router)
 app.include_router(chat.router)
 app.include_router(export.router)
+app.include_router(settings_router.router)
 
 static_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(static_dir):

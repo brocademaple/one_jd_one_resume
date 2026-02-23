@@ -1,4 +1,4 @@
-import { Job, Resume, Message } from '../types';
+import { Job, Resume, Message, SettingsResponse, CurrentProvider } from '../types';
 
 const BASE_URL = '/api';
 
@@ -131,3 +131,34 @@ export const getExportPdfUrl = (resumeId: number) =>
 
 export const getExportMarkdownUrl = (resumeId: number) =>
   `${BASE_URL}/export/markdown/${resumeId}`;
+
+// Settings
+export const fetchSettings = async (): Promise<SettingsResponse> => {
+  const res = await fetch(`${BASE_URL}/settings`);
+  if (!res.ok) throw new Error('Failed to fetch settings');
+  return res.json();
+};
+
+export const updateSettings = async (data: {
+  provider: string;
+  model: string;
+  api_keys?: Record<string, string>;
+}): Promise<void> => {
+  const res = await fetch(`${BASE_URL}/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to save settings');
+};
+
+export const clearApiKey = async (provider: string): Promise<void> => {
+  const res = await fetch(`${BASE_URL}/settings/api-key/${provider}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to clear API key');
+};
+
+export const fetchCurrentProvider = async (): Promise<CurrentProvider> => {
+  const res = await fetch(`${BASE_URL}/chat/current-provider`);
+  if (!res.ok) throw new Error('Failed to fetch provider info');
+  return res.json();
+};

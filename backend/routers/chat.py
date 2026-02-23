@@ -1,17 +1,14 @@
 import json
-import os
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-import anthropic
 
 from database import get_db
 import models
 import schemas
+from providers import stream_response, load_settings, PROVIDERS
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
-
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 SYSTEM_PROMPT = """你是一位专业的简历定制顾问和职业规划师。你的核心职责是：
 
@@ -31,37 +28,25 @@ SYSTEM_PROMPT = """你是一位专业的简历定制顾问和职业规划师。�
 请用中文回复，保持专业、友好的沟通风格。"""
 
 
-async def stream_chat(
+async def _generate(
     job_content: str,
     resume_content: str,
     messages: list,
-    user_background: str = None
+    user_background: str = None,
 ):
     context_parts = [f"## 目标岗位JD\n\n{job_content}"]
-
     if resume_content:
         context_parts.append(f"## 当前简历内容\n\n{resume_content}")
-
     if user_background:
         context_parts.append(f"## 用户补充的个人经历\n\n{user_background}")
 
     context = "\n\n---\n\n".join(context_parts)
     system_with_context = f"{SYSTEM_PROMPT}\n\n---\n\n{context}"
 
-    api_messages = [
-        {"role": msg["role"], "content": msg["content"]}
-        for msg in messages
-    ]
+    api_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
 
-    with client.messages.stream(
-        model="claude-opus-4-6",
-        max_tokens=8192,
-        thinking={"type": "adaptive"},
-        system=system_with_context,
-        messages=api_messages,
-    ) as stream:
-        for text in stream.text_stream:
-            yield f"data: {json.dumps({'type': 'text', 'content': text})}\n\n"
+    async for text in stream_response(system_with_context, api_messages):
+        yield f"data: {json.dumps({'type': 'text', 'content': text})}\n\n"
 
     yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
@@ -78,49 +63,66 @@ async def chat_stream(request: schemas.ChatRequest, db: Session = Depends(get_db
     messages = [msg.model_dump() for msg in request.messages]
 
     return StreamingResponse(
-        stream_chat(
+        _generate(
             job_content=db_job.content,
             resume_content=resume_content,
             messages=messages,
-            user_background=request.user_background
+            user_background=request.user_background,
         ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
-        }
+        },
     )
+
+
+@router.get("/current-provider")
+def get_current_provider():
+    """Return the currently configured provider and model info for the UI."""
+    settings = load_settings()
+    provider_id = settings.get("provider", "anthropic")
+    model_id = settings.get("model", "")
+    pconfig = PROVIDERS.get(provider_id, {})
+    model_name = next(
+        (m["name"] for m in pconfig.get("models", []) if m["id"] == model_id),
+        model_id,
+    )
+    return {
+        "provider": provider_id,
+        "provider_name": pconfig.get("name_cn", provider_id),
+        "model": model_id,
+        "model_name": model_name,
+    }
 
 
 @router.get("/conversations/{resume_id}", response_model=schemas.ConversationResponse)
 def get_conversation(resume_id: int, db: Session = Depends(get_db)):
-    db_conv = db.query(models.Conversation).filter(
-        models.Conversation.resume_id == resume_id
-    ).first()
+    db_conv = (
+        db.query(models.Conversation)
+        .filter(models.Conversation.resume_id == resume_id)
+        .first()
+    )
     if not db_conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return db_conv
 
 
 @router.post("/conversations")
-def save_conversation(
-    resume_id: int,
-    messages: list,
-    db: Session = Depends(get_db)
-):
-    db_conv = db.query(models.Conversation).filter(
-        models.Conversation.resume_id == resume_id
-    ).first()
-
+def save_conversation(resume_id: int, messages: list, db: Session = Depends(get_db)):
+    db_conv = (
+        db.query(models.Conversation)
+        .filter(models.Conversation.resume_id == resume_id)
+        .first()
+    )
     if db_conv:
         db_conv.messages = json.dumps(messages, ensure_ascii=False)
     else:
         db_conv = models.Conversation(
             resume_id=resume_id,
-            messages=json.dumps(messages, ensure_ascii=False)
+            messages=json.dumps(messages, ensure_ascii=False),
         )
         db.add(db_conv)
-
     db.commit()
     return {"message": "Conversation saved"}

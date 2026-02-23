@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, User, Loader2, MessageSquare, RefreshCw, ChevronDown } from 'lucide-react';
+import { Send, Bot, User, Loader2, MessageSquare, RefreshCw, ChevronDown, Settings } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Message, Resume } from '../types';
+import { Message, Resume, CurrentProvider } from '../types';
 import { streamChat, createResume, updateResume } from '../api';
 
 interface ChatPanelProps {
@@ -10,6 +10,8 @@ interface ChatPanelProps {
   resumeId: number | null;
   onResumeCreated: (resume: Resume) => void;
   onResumeUpdated: (resume: Resume) => void;
+  currentProvider?: CurrentProvider | null;
+  onOpenSettings?: () => void;
 }
 
 const WELCOME_MESSAGE: Message = {
@@ -41,6 +43,8 @@ export function ChatPanel({
   resumeId,
   onResumeCreated,
   onResumeUpdated,
+  currentProvider,
+  onOpenSettings,
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
@@ -169,17 +173,26 @@ export function ChatPanel({
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
       <div className="panel-header">
-        <span className="panel-title">
-          <Bot size={16} className="text-purple-500" />
-          简历定制 Agent
+        <span className="panel-title flex-1 min-w-0">
+          <Bot size={16} className="text-purple-500 flex-shrink-0" />
+          <span className="truncate">简历定制 Agent</span>
+          {currentProvider && (
+            <button
+              onClick={onOpenSettings}
+              className="ml-1 flex items-center gap-1 text-xs bg-purple-50 text-purple-600 hover:bg-purple-100 px-2 py-0.5 rounded-full transition-colors flex-shrink-0"
+              title="切换模型"
+            >
+              {currentProvider.provider_name} · {currentProvider.model.split('-').slice(-2).join('-')}
+            </button>
+          )}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 ml-1 flex-shrink-0">
           <button
             className="text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-100"
             onClick={() => setShowBgInput(!showBgInput)}
             title="设置个人背景"
           >
-            {showBgInput ? '收起背景' : '我的背景'}
+            {showBgInput ? '收起' : '我的背景'}
           </button>
           <button
             className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -187,6 +200,13 @@ export function ChatPanel({
             title="清除对话"
           >
             <RefreshCw size={14} />
+          </button>
+          <button
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-purple-600"
+            onClick={onOpenSettings}
+            title="模型设置"
+          >
+            <Settings size={14} />
           </button>
         </div>
       </div>
