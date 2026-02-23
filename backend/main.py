@@ -5,11 +5,11 @@ from fastapi.responses import FileResponse
 import os
 
 from database import engine, Base
-from routers import jobs, resumes, chat, export, settings as settings_router
+from routers import jobs, resumes, chat, export, settings as settings_router, uploads
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="简历定制Agent", version="1.0.0")
+app = FastAPI(title="求职Agent", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,6 +24,7 @@ app.include_router(resumes.router)
 app.include_router(chat.router)
 app.include_router(export.router)
 app.include_router(settings_router.router)
+app.include_router(uploads.router)
 
 static_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(static_dir):

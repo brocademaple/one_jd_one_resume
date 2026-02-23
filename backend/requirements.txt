@@ -8,3 +8,7 @@ aiofiles==24.1.0
 pydantic==2.10.3
 python-dotenv==1.0.1
 reportlab==4.2.5
+pypdf==5.1.0
+python-docx==1.1.2
+Pillow==11.0.0
+pytesseract==0.3.13

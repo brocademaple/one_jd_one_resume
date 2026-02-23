@@ -132,6 +132,28 @@ export const getExportPdfUrl = (resumeId: number) =>
 export const getExportMarkdownUrl = (resumeId: number) =>
   `${BASE_URL}/export/markdown/${resumeId}`;
 
+export const getExportWordUrl = (resumeId: number) =>
+  `${BASE_URL}/export/word/${resumeId}`;
+
+export const getPreviewPdfUrl = (resumeId: number) =>
+  `${BASE_URL}/export/pdf-preview/${resumeId}`;
+
+export const extractTextFromFile = async (file: File): Promise<{filename: string; text: string; parser: string}> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${BASE_URL}/uploads/extract`, { method: 'POST', body: formData });
+  if (!res.ok) throw new Error('文件解析失败');
+  return res.json();
+};
+
+export const parseJobFromFile = async (file: File): Promise<{title: string; company?: string; content: string}> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${BASE_URL}/uploads/parse-job`, { method: 'POST', body: formData });
+  if (!res.ok) throw new Error('JD解析失败');
+  return res.json();
+};
+
 // Settings
 export const fetchSettings = async (): Promise<SettingsResponse> => {
   const res = await fetch(`${BASE_URL}/settings`);
