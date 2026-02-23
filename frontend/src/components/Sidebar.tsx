@@ -1,0 +1,263 @@
+import { useState } from 'react';
+import { Plus, FileText, Briefcase, Trash2, ChevronRight, ChevronDown, X } from 'lucide-react';
+import { Job, Resume } from '../types';
+import { createJob, deleteJob, deleteResume } from '../api';
+
+interface SidebarProps {
+  jobs: Job[];
+  resumes: Resume[];
+  selectedJobId: number | null;
+  selectedResumeId: number | null;
+  onSelectJob: (job: Job) => void;
+  onSelectResume: (resume: Resume) => void;
+  onJobCreated: (job: Job) => void;
+  onJobDeleted: (jobId: number) => void;
+  onResumeDeleted: (resumeId: number) => void;
+  onNewResume: (jobId: number) => void;
+}
+
+interface NewJobForm {
+  title: string;
+  company: string;
+  content: string;
+}
+
+export function Sidebar({
+  jobs,
+  resumes,
+  selectedJobId,
+  selectedResumeId,
+  onSelectJob,
+  onSelectResume,
+  onJobCreated,
+  onJobDeleted,
+  onResumeDeleted,
+  onNewResume,
+}: SidebarProps) {
+  const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
+  const [showNewJobModal, setShowNewJobModal] = useState(false);
+  const [newJobForm, setNewJobForm] = useState<NewJobForm>({ title: '', company: '', content: '' });
+  const [creating, setCreating] = useState(false);
+
+  const toggleJob = (jobId: number) => {
+    const next = new Set(expandedJobs);
+    if (next.has(jobId)) {
+      next.delete(jobId);
+    } else {
+      next.add(jobId);
+    }
+    setExpandedJobs(next);
+  };
+
+  const handleCreateJob = async () => {
+    if (!newJobForm.title.trim() || !newJobForm.content.trim()) return;
+    setCreating(true);
+    try {
+      const job = await createJob(newJobForm);
+      onJobCreated(job);
+      setNewJobForm({ title: '', company: '', content: '' });
+      setShowNewJobModal(false);
+      setExpandedJobs(prev => new Set(prev).add(job.id));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeleteJob = async (e: React.MouseEvent, jobId: number) => {
+    e.stopPropagation();
+    if (!confirm('确认删除该岗位及所有相关简历？')) return;
+    try {
+      await deleteJob(jobId);
+      onJobDeleted(jobId);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteResume = async (e: React.MouseEvent, resumeId: number) => {
+    e.stopPropagation();
+    if (!confirm('确认删除该简历？')) return;
+    try {
+      await deleteResume(resumeId);
+      onResumeDeleted(resumeId);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const getJobResumes = (jobId: number) =>
+    resumes.filter(r => r.job_id === jobId);
+
+  return (
+    <>
+      <div className="flex flex-col h-full bg-gray-900 text-gray-100 w-64 flex-shrink-0">
+        {/* Header */}
+        <div className="px-4 py-4 border-b border-gray-700">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">简历定制 Agent</span>
+          </div>
+          <button
+            onClick={() => setShowNewJobModal(true)}
+            className="mt-2 w-full flex items-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus size={16} />
+            新建岗位
+          </button>
+        </div>
+
+        {/* Job list */}
+        <div className="flex-1 overflow-y-auto py-2">
+          {jobs.length === 0 ? (
+            <div className="px-4 py-8 text-center text-gray-500 text-sm">
+              <Briefcase size={32} className="mx-auto mb-2 opacity-40" />
+              <p>暂无岗位</p>
+              <p className="text-xs mt-1">点击上方按钮新建岗位</p>
+            </div>
+          ) : (
+            jobs.map(job => {
+              const jobResumes = getJobResumes(job.id);
+              const isExpanded = expandedJobs.has(job.id);
+              const isSelected = selectedJobId === job.id;
+
+              return (
+                <div key={job.id}>
+                  {/* Job item */}
+                  <div
+                    className={`group flex items-center gap-1 px-2 py-2 cursor-pointer hover:bg-gray-800 transition-colors ${
+                      isSelected ? 'bg-gray-800' : ''
+                    }`}
+                    onClick={() => {
+                      onSelectJob(job);
+                      toggleJob(job.id);
+                    }}
+                  >
+                    <button
+                      className="flex-shrink-0 p-0.5 hover:bg-gray-700 rounded"
+                      onClick={e => { e.stopPropagation(); toggleJob(job.id); }}
+                    >
+                      {isExpanded
+                        ? <ChevronDown size={14} className="text-gray-400" />
+                        : <ChevronRight size={14} className="text-gray-400" />
+                      }
+                    </button>
+                    <Briefcase size={14} className="flex-shrink-0 text-primary-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{job.title}</p>
+                      {job.company && (
+                        <p className="text-xs text-gray-400 truncate">{job.company}</p>
+                      )}
+                    </div>
+                    <button
+                      className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 hover:bg-red-900 hover:text-red-400 rounded transition-all"
+                      onClick={e => handleDeleteJob(e, job.id)}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+
+                  {/* Resumes under job */}
+                  {isExpanded && (
+                    <div className="ml-4 border-l border-gray-700">
+                      {jobResumes.map(resume => (
+                        <div
+                          key={resume.id}
+                          className={`group flex items-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-gray-800 transition-colors ${
+                            selectedResumeId === resume.id ? 'bg-gray-800 text-primary-300' : 'text-gray-400'
+                          }`}
+                          onClick={() => onSelectResume(resume)}
+                        >
+                          <FileText size={12} className="flex-shrink-0" />
+                          <span className="text-xs flex-1 truncate">
+                            {resume.title || `简历 v${resume.version}`}
+                          </span>
+                          <button
+                            className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 rounded transition-all"
+                            onClick={e => handleDeleteResume(e, resume.id)}
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        className="w-full flex items-center gap-1 px-2 py-1.5 text-xs text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
+                        onClick={() => onNewResume(job.id)}
+                      >
+                        <Plus size={12} />
+                        新建简历
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="px-4 py-3 border-t border-gray-700 text-xs text-gray-500 text-center">
+          {jobs.length} 个岗位 · {resumes.length} 份简历
+        </div>
+      </div>
+
+      {/* New Job Modal */}
+      {showNewJobModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-[600px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-semibold text-gray-800">新建岗位</h2>
+              <button onClick={() => setShowNewJobModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">岗位名称 *</label>
+                <input
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="如：高级前端工程师"
+                  value={newJobForm.title}
+                  onChange={e => setNewJobForm(f => ({ ...f, title: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">公司名称</label>
+                <input
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="如：字节跳动"
+                  value={newJobForm.company}
+                  onChange={e => setNewJobForm(f => ({ ...f, company: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">岗位JD内容 *</label>
+                <textarea
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                  placeholder="粘贴岗位描述（JD）内容..."
+                  rows={10}
+                  value={newJobForm.content}
+                  onChange={e => setNewJobForm(f => ({ ...f, content: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end gap-3">
+              <button
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
+                onClick={() => setShowNewJobModal(false)}
+              >
+                取消
+              </button>
+              <button
+                className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                onClick={handleCreateJob}
+                disabled={creating || !newJobForm.title.trim() || !newJobForm.content.trim()}
+              >
+                {creating ? '创建中...' : '创建岗位'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
