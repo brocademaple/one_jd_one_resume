@@ -1,0 +1,12 @@
+{
+  "provider": "qwen",
+  "model": "qwen-plus",
+  "api_keys": {
+    "anthropic": "",
+    "qwen": "",
+    "zhipu": "",
+    "deepseek": "",
+    "moonshot": "",
+    "baidu": ""
+  }
+}
