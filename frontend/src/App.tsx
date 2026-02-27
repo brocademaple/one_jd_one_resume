@@ -159,6 +159,7 @@ function App() {
         onJobCreated={handleJobCreated}
         onJobDeleted={handleJobDeleted}
         onResumeDeleted={handleResumeDeleted}
+        onResumeUpdated={handleResumeUpdated}
         onNewResume={handleNewResume}
         currentProvider={currentProvider}
         onOpenSettings={() => setShowSettings(true)}

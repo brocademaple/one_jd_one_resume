@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Plus, FileText, Briefcase, Trash2, ChevronRight, ChevronDown, X, Settings, Upload, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Plus, FileText, Briefcase, Trash2, ChevronRight, ChevronDown, X, Settings, Upload, Loader2, Pencil, Check } from 'lucide-react';
 import { Job, Resume, CurrentProvider, JOB_STATUS_OPTIONS } from '../types';
 import { getStatusConfig } from '../utils/jobStatus';
-import { createJob, deleteJob, deleteResume, parseJobFromFile } from '../api';
+import { createJob, deleteJob, deleteResume, parseJobFromFile, updateResume } from '../api';
 
 interface SidebarProps {
   jobs: Job[];
@@ -14,6 +14,7 @@ interface SidebarProps {
   onJobCreated: (job: Job) => void;
   onJobDeleted: (jobId: number) => void;
   onResumeDeleted: (resumeId: number) => void;
+  onResumeUpdated: (resume: Resume) => void;
   currentProvider?: CurrentProvider | null;
   onOpenSettings?: () => void;
   onNewResume: (jobId: number) => void;
@@ -43,14 +44,39 @@ function buildJobContent(form: NewJobForm): string {
 }
 
 export function Sidebar(props: SidebarProps) {
-  const { jobs, resumes, selectedJobId, selectedResumeId, onSelectJob, onSelectResume, onJobCreated, onJobDeleted, onResumeDeleted, onNewResume, currentProvider, onOpenSettings } = props;
+  const { jobs, resumes, selectedJobId, selectedResumeId, onSelectJob, onSelectResume, onJobCreated, onJobDeleted, onResumeDeleted, onResumeUpdated, onNewResume, currentProvider, onOpenSettings } = props;
   const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
+  const [editingResumeId, setEditingResumeId] = useState<number | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const editingInputRef = useRef<HTMLInputElement>(null);
   const [showNewJobModal, setShowNewJobModal] = useState(false);
   const [newJobForm, setNewJobForm] = useState<NewJobForm>({
     link: '', title: '', salary: '', company: '', status: 'pending', responsibilities: '', requirements: '', bonus: '',
   });
   const [creating, setCreating] = useState(false);
   const [parsing, setParsing] = useState(false);
+
+  useEffect(() => {
+    if (editingResumeId !== null) editingInputRef.current?.focus();
+  }, [editingResumeId]);
+
+  const startEditResumeTitle = (resume: Resume) => {
+    setEditingResumeId(resume.id);
+    setEditingTitle(resume.title || `简历 v${resume.version}`);
+  };
+
+  const saveResumeTitle = async () => {
+    if (editingResumeId === null) return;
+    const t = editingTitle.trim();
+    setEditingResumeId(null);
+    if (!t) return;
+    try {
+      const updated = await updateResume(editingResumeId, { title: t });
+      onResumeUpdated(updated);
+    } catch {
+      setEditingResumeId(editingResumeId);
+    }
+  };
 
   const toggleJob = (jobId: number) => {
     const next = new Set(expandedJobs);
@@ -137,10 +163,39 @@ export function Sidebar(props: SidebarProps) {
                   <StatusIcon size={12} />
                   <span className="text-xs font-medium">状态：{statusCfg.label}</span>
                 </div>
-                {jobResumes.map(resume => <div key={resume.id} className={`group flex items-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-gray-800 transition-colors ${selectedResumeId === resume.id ? 'bg-gray-800 text-primary-300' : 'text-gray-400'}`} onClick={() => onSelectResume(resume)}>
+                {jobResumes.map(resume => <div key={resume.id} className={`group flex items-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-gray-800 transition-colors ${selectedResumeId === resume.id ? 'bg-gray-800 text-primary-300' : 'text-gray-400'}`} onClick={() => editingResumeId !== resume.id && onSelectResume(resume)}>
                   <FileText size={12} className="flex-shrink-0" />
-                  <span className="text-xs flex-1 truncate">{resume.title || `简历 v${resume.version}`}</span>
-                  <button className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 rounded transition-all" onClick={async e => { e.stopPropagation(); if (confirm('确认删除该简历？')) { await deleteResume(resume.id); onResumeDeleted(resume.id); } }}><Trash2 size={11} /></button>
+                  {editingResumeId === resume.id ? (
+                    <input
+                      ref={editingInputRef}
+                      className="flex-1 min-w-0 text-xs bg-gray-700 text-gray-200 rounded px-1.5 py-0.5 outline-none border border-primary-500"
+                      value={editingTitle}
+                      onChange={e => setEditingTitle(e.target.value)}
+                      onBlur={() => { setEditingResumeId(null); setEditingTitle(''); }}
+                      onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') saveResumeTitle(); if (e.key === 'Escape') { setEditingResumeId(null); setEditingTitle(''); } }}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="text-xs flex-1 truncate">{resume.title || `简历 v${resume.version}`}</span>
+                  )}
+                  {editingResumeId === resume.id ? (
+                    <button
+                      className="opacity-100 p-0.5 text-primary-300 hover:text-primary-200 rounded transition-all"
+                      onClick={e => { e.stopPropagation(); saveResumeTitle(); }}
+                      title="保存名称"
+                    >
+                      <Check size={11} />
+                    </button>
+                  ) : (
+                    <button
+                      className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-primary-300 rounded transition-all"
+                      onClick={e => { e.stopPropagation(); startEditResumeTitle(resume); }}
+                      title="修改名称"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                  )}
+                  <button className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 rounded transition-all" onClick={async e => { e.stopPropagation(); if (confirm('确认删除该简历？')) { await deleteResume(resume.id); onResumeDeleted(resume.id); } }} title="删除"><Trash2 size={11} /></button>
                 </div>)}
                 <button className="w-full flex items-center gap-1 px-2 py-1.5 text-xs text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors" onClick={() => onNewResume(job.id)}><Plus size={12} />新建简历</button>
               </div>}
