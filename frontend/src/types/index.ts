@@ -78,3 +78,10 @@ export interface UserBackground {
   created_at: string;
   updated_at?: string;
 }
+
+/** 面试指导摘录（按岗位收藏的 Agent 内容） */
+export interface InterviewNote {
+  id: string;
+  content: string;
+  created_at: number;
+}

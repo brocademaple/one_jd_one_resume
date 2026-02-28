@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { JDPanel } from './components/JDPanel';
+import { JDAndInterviewGuideColumn } from './components/JDAndInterviewGuideColumn';
 import { ResumePanel } from './components/ResumePanel';
 import { ChatPanel } from './components/ChatPanel';
 import { ResizablePanels } from './components/ResizablePanels';
@@ -19,7 +19,15 @@ function App() {
   const [currentProvider, setCurrentProvider] = useState<CurrentProvider | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [expandInterviewGuide, setExpandInterviewGuide] = useState(false);
+  const [interviewNotesRefreshKey, setInterviewNotesRefreshKey] = useState(0);
   const mainRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!expandInterviewGuide) return;
+    const t = setTimeout(() => setExpandInterviewGuide(false), 150);
+    return () => clearTimeout(t);
+  }, [expandInterviewGuide]);
 
   const loadProviderInfo = useCallback(async () => {
     try {
@@ -161,6 +169,9 @@ function App() {
         onResumeDeleted={handleResumeDeleted}
         onResumeUpdated={handleResumeUpdated}
         onNewResume={handleNewResume}
+        onExpandInterviewGuide={() => setExpandInterviewGuide(true)}
+        onInterviewGuideDeleted={() => setInterviewNotesRefreshKey(k => k + 1)}
+        onInterviewGuideRenamed={() => setInterviewNotesRefreshKey(k => k + 1)}
         currentProvider={currentProvider}
         onOpenSettings={() => setShowSettings(true)}
       />
@@ -174,13 +185,19 @@ function App() {
 
       <div className="flex-1 min-w-0 flex overflow-hidden" style={{ flex: '1 1 0' }}>
       <ResizablePanels>
-        <JDPanel job={selectedJob} onJobUpdated={handleJobUpdated} />
+        <JDAndInterviewGuideColumn
+          job={selectedJob}
+          onJobUpdated={handleJobUpdated}
+          expandInterviewGuide={expandInterviewGuide}
+          interviewNotesRefreshKey={interviewNotesRefreshKey}
+        />
         <ResumePanel resume={selectedResume} onResumeUpdated={handleResumeUpdated} />
         <ChatPanel
           jobId={selectedJob?.id ?? null}
           resumeId={selectedResume?.id ?? null}
           onResumeCreated={handleResumeCreated}
           onResumeUpdated={handleResumeUpdated}
+          onInterviewNoteAdded={() => setInterviewNotesRefreshKey(k => k + 1)}
           currentProvider={currentProvider}
           onOpenSettings={() => setShowSettings(true)}
         />

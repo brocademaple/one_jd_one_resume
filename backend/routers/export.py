@@ -28,22 +28,47 @@ def _clean_content(content: str) -> str:
 
 def _safe_filename(title: Optional[str], suffix: str, fallback: str) -> str:
     if title:
-        safe_title = re.sub(r"[^\w\s-]", "", title).strip()[:50]
+        # Keep letters, digits, spaces, hyphens, and CJK (Unicode word chars)
+        safe_title = re.sub(r'[<>:"/\\|?*]', "", title).strip()[:50]
         if safe_title:
             return f"{safe_title}.{suffix}"
     return fallback
 
 
+def _strip_md_inline(text: str) -> str:
+    """Remove markdown bold/italic/code from text for Word export."""
+    s = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    s = re.sub(r"\*(.*?)\*", r"\1", s)
+    s = re.sub(r"_(.*?)_", r"\1", s)
+    s = re.sub(r"__(.*?)__", r"\1", s)
+    s = re.sub(r"`(.*?)`", r"\1", s)
+    return s
+
+
 def md_to_pdf_content(md_text: str):
     font_path_regular = None
     font_candidates = [
+        # Windows
+        os.path.expandvars(r"%WINDIR%\Fonts\msyh.ttc"),
+        os.path.expandvars(r"%WINDIR%\Fonts\msyhbd.ttc"),
+        os.path.expandvars(r"%WINDIR%\Fonts\simsun.ttc"),
+        "C:\\Windows\\Fonts\\msyh.ttc",
+        "C:\\Windows\\Fonts\\simsun.ttc",
+        # macOS
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/Supplemental/Songti.ttc",
+        "/Library/Fonts/Arial Unicode.ttf",
+        # Linux
         "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
         "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     ]
     for fp in font_candidates:
-        if os.path.exists(fp):
-            font_path_regular = fp
+        if not fp:
+            continue
+        normalized = os.path.normpath(os.path.expanduser(os.path.expandvars(fp)))
+        if os.path.exists(normalized):
+            font_path_regular = normalized
             break
 
     if font_path_regular:
@@ -127,16 +152,17 @@ def export_word(resume_id: int, db: Session = Depends(get_db)):
         if not text:
             doc.add_paragraph("")
             continue
+        clean = _strip_md_inline(text)
         if text.startswith("# "):
-            doc.add_heading(text[2:].strip(), level=1)
+            doc.add_heading(clean[2:].strip(), level=1)
         elif text.startswith("## "):
-            doc.add_heading(text[3:].strip(), level=2)
+            doc.add_heading(clean[3:].strip(), level=2)
         elif text.startswith("### "):
-            doc.add_heading(text[4:].strip(), level=3)
+            doc.add_heading(clean[4:].strip(), level=3)
         elif text.startswith("- ") or text.startswith("* "):
-            doc.add_paragraph(text[2:].strip(), style="List Bullet")
+            doc.add_paragraph(clean[2:].strip(), style="List Bullet")
         else:
-            doc.add_paragraph(text)
+            doc.add_paragraph(clean)
 
     buffer = io.BytesIO()
     doc.save(buffer)

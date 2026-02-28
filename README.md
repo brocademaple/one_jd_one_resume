@@ -204,7 +204,7 @@ export QIANFAN_API_KEY=...            # 百度文心
 
 | 方式 | 命令 | 浏览器访问 |
 |------|------|------------|
-| 开发模式（前后端各一进程） | `./dev.sh`（Linux/Mac）或 先 `cd backend && uvicorn main:app --port 8000`，再另开终端 `cd frontend && npm run dev` | **http://localhost:5173** |
+| 开发模式（前后端各一进程） | **`dev.bat`**（Windows 一键启动）或 `./dev.sh`（Linux/Mac）或 先 `cd backend && uvicorn main:app --port 8000`，再另开终端 `cd frontend && npm run dev` | **http://localhost:5173** |
 | 生产模式（仅后端，顺带构建前端） | `./start.sh`（Linux/Mac）或 **`start.bat`**（Windows） | **http://localhost:8000** |
 
 - **只启动了后端（uvicorn）时**：必须先生成前端再访问 8000。若未执行过 `npm run build`，请先运行 `start.bat` 或 `start.sh`（会先构建再起后端），然后访问 **http://localhost:8000**。

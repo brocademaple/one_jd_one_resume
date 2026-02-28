@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, User, Loader2, MessageSquare, RefreshCw, ChevronDown, Settings, Upload, X, Sparkles, Save, Check } from 'lucide-react';
+import { Send, Bot, User, Loader2, MessageSquare, RefreshCw, ChevronDown, Settings, Upload, X, Sparkles, Save, Check, BookMarked } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message, Resume, CurrentProvider } from '../types';
 import { streamChat, createResume, updateResume, extractTextFromFile, fetchConversation, saveConversation, fetchUserBackground, updateUserBackground } from '../api';
+import { addInterviewNote } from '../utils/interviewNotes';
 
 interface ChatPanelProps {
   jobId: number | null;
   resumeId: number | null;
   onResumeCreated: (resume: Resume) => void;
   onResumeUpdated: (resume: Resume) => void;
+  onInterviewNoteAdded?: () => void;
   currentProvider?: CurrentProvider | null;
   onOpenSettings?: () => void;
 }
@@ -34,7 +36,7 @@ function extractResumeFromText(text: string): string | null {
   return startIdx !== -1 && endIdx > startIdx ? text.slice(startIdx + 18, endIdx).trim() : null;
 }
 
-export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, currentProvider, onOpenSettings }: ChatPanelProps) {
+export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, onInterviewNoteAdded, currentProvider, onOpenSettings }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
@@ -46,12 +48,34 @@ export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, c
   const [backgroundSaved, setBackgroundSaved] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; text: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const currentResumeIdRef = useRef<number | null>(resumeId);
 
   useEffect(() => { currentResumeIdRef.current = resumeId; }, [resumeId]);
   useEffect(() => { if (autoScroll) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, streamingContent, autoScroll]);
+
+  // 右键菜单：点击外部关闭
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = (e: MouseEvent) => {
+      if (contextMenuRef.current?.contains(e.target as Node)) return;
+      setContextMenu(null);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [contextMenu]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    const sel = window.getSelection();
+    const text = sel?.toString()?.trim();
+    if (text && jobId) {
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY, text });
+    }
+  }, [jobId]);
 
   // 加载用户背景信息
   useEffect(() => {
@@ -161,18 +185,72 @@ export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, c
 
     {loadingHistory && <div className="px-3 py-2 text-xs text-gray-500 flex items-center gap-1"><Loader2 size={12} className="animate-spin" />加载对话历史...</div>}
 
-    <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3" onScroll={() => {
-      const c = chatContainerRef.current; if (!c) return; setAutoScroll(c.scrollHeight - c.scrollTop - c.clientHeight < 50);
-    }}>
+    <div
+      ref={chatContainerRef}
+      className="flex-1 overflow-y-auto px-3 py-3 space-y-3 select-text"
+      onScroll={() => {
+        const c = chatContainerRef.current; if (!c) return; setAutoScroll(c.scrollHeight - c.scrollTop - c.clientHeight < 50);
+      }}
+      onContextMenu={handleContextMenu}
+    >
       {messages.map((msg, i) => <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-        <div className={`w-7 h-7 rounded-full flex items-center justify-center mt-0.5 ${msg.role === 'user' ? 'bg-primary-600 text-white' : 'bg-purple-100 text-purple-600'}`}>{msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}</div>
-        <div className={`max-w-[85%] ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}`}>{msg.role === 'assistant' ? <div className="markdown-content text-sm"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content.replace(/===RESUME_START===[\s\S]*?===RESUME_END===/g, '*(简历已更新到右侧)*')}</ReactMarkdown></div> : <p className="text-sm whitespace-pre-wrap">{msg.content}</p>}</div>
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${msg.role === 'user' ? 'bg-primary-600 text-white' : 'bg-purple-100 text-purple-600'}`}>{msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}</div>
+        <div className={`max-w-[85%] flex-1 min-w-0 ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}`}>
+          {msg.role === 'assistant' ? (
+            <>
+              <div className="markdown-content text-sm"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content.replace(/===RESUME_START===[\s\S]*?===RESUME_END===/g, '*(简历已更新到右侧)*')}</ReactMarkdown></div>
+              {jobId && (
+                <button
+                  type="button"
+                  className="mt-1.5 flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 hover:underline"
+                  onClick={() => {
+                    const textToSave = msg.content.replace(/===RESUME_START===[\s\S]*?===RESUME_END===/g, '').trim();
+                    if (textToSave) {
+                      addInterviewNote(jobId, textToSave);
+                      onInterviewNoteAdded?.();
+                    }
+                  }}
+                  title="收藏到面试指导"
+                >
+                  <BookMarked size={12} /> 收藏到面试指导
+                </button>
+              )}
+            </>
+          ) : (
+            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+          )}
+        </div>
       </div>)}
       {streaming && <div className="chat-bubble-assistant max-w-[85%]"><ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown></div>}
       <div ref={messagesEndRef} />
     </div>
 
-    <div className="px-3 pb-2">
+    {/* 右键菜单：选中文本 → 添加到面试指导 */}
+    {contextMenu && (
+      <div
+        ref={contextMenuRef}
+        className="fixed z-[100] min-w-[180px] py-1 bg-white rounded-lg border border-gray-200 shadow-lg"
+        style={{ left: contextMenu.x, top: contextMenu.y }}
+      >
+        <button
+          type="button"
+          className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-800"
+          onClick={() => {
+            if (contextMenu.text.trim() && jobId) {
+              addInterviewNote(jobId, contextMenu.text);
+              onInterviewNoteAdded?.();
+            }
+            setContextMenu(null);
+          }}
+        >
+          <BookMarked size={14} className="text-amber-500 flex-shrink-0" />
+          添加到面试指导中
+        </button>
+      </div>
+    )}
+
+    <div className="px-3 pt-1 pb-2">
+      <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1"><BookMarked size={12} className="flex-shrink-0" />选中内容后右键，可以将内容存入面试指导</p>
       <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1"><Sparkles size={12} />快捷提示</p>
       <div className="flex flex-wrap gap-1.5">
         {QUICK_PROMPTS.map((p) => (

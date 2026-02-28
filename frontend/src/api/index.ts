@@ -138,6 +138,40 @@ export const getExportWordUrl = (resumeId: number) =>
 export const getPreviewPdfUrl = (resumeId: number) =>
   `${BASE_URL}/export/pdf-preview/${resumeId}`;
 
+/** Trigger download of resume as PDF; returns filename on success. */
+export async function downloadResumePdf(resumeId: number): Promise<string> {
+  const url = getExportPdfUrl(resumeId);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('导出 PDF 失败');
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition');
+  const match = disposition?.match(/filename="?([^";\n]+)"?/);
+  const filename = match ? decodeURIComponent(match[1].trim()) : `resume_${resumeId}.pdf`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  return filename;
+}
+
+/** Trigger download of resume as Word; returns filename on success. */
+export async function downloadResumeWord(resumeId: number): Promise<string> {
+  const url = getExportWordUrl(resumeId);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('导出 Word 失败');
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition');
+  const match = disposition?.match(/filename="?([^";\n]+)"?/);
+  const filename = match ? decodeURIComponent(match[1].trim()) : `resume_${resumeId}.docx`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  return filename;
+}
+
 export const extractTextFromFile = async (file: File): Promise<{filename: string; text: string; parser: string}> => {
   const formData = new FormData();
   formData.append('file', file);

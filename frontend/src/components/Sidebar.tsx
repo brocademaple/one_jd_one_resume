@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, FileText, Briefcase, Trash2, ChevronRight, ChevronDown, X, Settings, Upload, Loader2, Pencil, Check } from 'lucide-react';
+import { Plus, FileText, Briefcase, Trash2, ChevronRight, ChevronDown, X, Settings, Upload, Loader2, Pencil, Check, BookOpen } from 'lucide-react';
 import { Job, Resume, CurrentProvider, JOB_STATUS_OPTIONS } from '../types';
 import { getStatusConfig } from '../utils/jobStatus';
+import { getInterviewGuideTitle, saveInterviewGuideTitle, clearInterviewGuide } from '../utils/interviewNotes';
 import { createJob, deleteJob, deleteResume, parseJobFromFile, updateResume } from '../api';
 
 interface SidebarProps {
@@ -18,6 +19,9 @@ interface SidebarProps {
   currentProvider?: CurrentProvider | null;
   onOpenSettings?: () => void;
   onNewResume: (jobId: number) => void;
+  onExpandInterviewGuide?: () => void;
+  onInterviewGuideDeleted?: (jobId: number) => void;
+  onInterviewGuideRenamed?: (jobId: number) => void;
 }
 
 interface NewJobForm {
@@ -44,11 +48,14 @@ function buildJobContent(form: NewJobForm): string {
 }
 
 export function Sidebar(props: SidebarProps) {
-  const { jobs, resumes, selectedJobId, selectedResumeId, onSelectJob, onSelectResume, onJobCreated, onJobDeleted, onResumeDeleted, onResumeUpdated, onNewResume, currentProvider, onOpenSettings } = props;
+  const { jobs, resumes, selectedJobId, selectedResumeId, onSelectJob, onSelectResume, onJobCreated, onJobDeleted, onResumeDeleted, onResumeUpdated, onNewResume, onExpandInterviewGuide, onInterviewGuideDeleted, onInterviewGuideRenamed, currentProvider, onOpenSettings } = props;
   const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
   const [editingResumeId, setEditingResumeId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const editingInputRef = useRef<HTMLInputElement>(null);
+  const [editingGuideJobId, setEditingGuideJobId] = useState<number | null>(null);
+  const [editingGuideTitle, setEditingGuideTitle] = useState('');
+  const editingGuideInputRef = useRef<HTMLInputElement>(null);
   const [showNewJobModal, setShowNewJobModal] = useState(false);
   const [newJobForm, setNewJobForm] = useState<NewJobForm>({
     link: '', title: '', salary: '', company: '', status: 'pending', responsibilities: '', requirements: '', bonus: '',
@@ -59,6 +66,9 @@ export function Sidebar(props: SidebarProps) {
   useEffect(() => {
     if (editingResumeId !== null) editingInputRef.current?.focus();
   }, [editingResumeId]);
+  useEffect(() => {
+    if (editingGuideJobId !== null) editingGuideInputRef.current?.focus();
+  }, [editingGuideJobId]);
 
   const startEditResumeTitle = (resume: Resume) => {
     setEditingResumeId(resume.id);
@@ -76,6 +86,27 @@ export function Sidebar(props: SidebarProps) {
     } catch {
       setEditingResumeId(editingResumeId);
     }
+  };
+
+  const startEditGuideTitle = (jobId: number) => {
+    setEditingGuideJobId(jobId);
+    setEditingGuideTitle(getInterviewGuideTitle(jobId));
+  };
+
+  const saveGuideTitle = () => {
+    if (editingGuideJobId === null) return;
+    const t = editingGuideTitle.trim();
+    saveInterviewGuideTitle(editingGuideJobId, t || '面试指导');
+    const jid = editingGuideJobId;
+    setEditingGuideJobId(null);
+    setEditingGuideTitle('');
+    onInterviewGuideRenamed?.(jid);
+  };
+
+  const handleDeleteInterviewGuide = (jobId: number) => {
+    if (!confirm('确认删除该岗位的面试指导？内容将清空且不可恢复。')) return;
+    clearInterviewGuide(jobId);
+    onInterviewGuideDeleted?.(jobId);
   };
 
   const toggleJob = (jobId: number) => {
@@ -162,6 +193,45 @@ export function Sidebar(props: SidebarProps) {
                 <div className={`flex items-center gap-1.5 px-2 py-1.5 mb-1 rounded-lg ${statusCfg.bgColor} ${statusCfg.color}`}>
                   <StatusIcon size={12} />
                   <span className="text-xs font-medium">状态：{statusCfg.label}</span>
+                </div>
+                {/* 面试指导：与定制简历平级，支持改名与删除 */}
+                <div
+                  className={`group flex items-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-gray-800 transition-colors ${selectedJobId === job.id ? 'bg-gray-800 text-amber-300' : 'text-gray-400 hover:text-amber-300'}`}
+                  onClick={() => { onSelectJob(job); onExpandInterviewGuide?.(); }}
+                  title="查看面试指导"
+                >
+                  <BookOpen size={12} className="flex-shrink-0" />
+                  {editingGuideJobId === job.id ? (
+                    <input
+                      ref={editingGuideInputRef}
+                      className="flex-1 min-w-0 text-xs bg-gray-700 text-gray-200 rounded px-1.5 py-0.5 outline-none border border-amber-500"
+                      value={editingGuideTitle}
+                      onChange={e => setEditingGuideTitle(e.target.value)}
+                      onBlur={() => { setEditingGuideJobId(null); setEditingGuideTitle(''); }}
+                      onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') saveGuideTitle(); if (e.key === 'Escape') { setEditingGuideJobId(null); setEditingGuideTitle(''); } }}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="text-xs flex-1 truncate">{getInterviewGuideTitle(job.id)}</span>
+                  )}
+                  {editingGuideJobId === job.id ? (
+                    <button
+                      className="opacity-100 p-0.5 text-amber-300 hover:text-amber-200 rounded transition-all"
+                      onClick={e => { e.stopPropagation(); saveGuideTitle(); }}
+                      title="保存名称"
+                    >
+                      <Check size={11} />
+                    </button>
+                  ) : (
+                    <button
+                      className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-amber-300 rounded transition-all"
+                      onClick={e => { e.stopPropagation(); startEditGuideTitle(job.id); }}
+                      title="修改名称"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                  )}
+                  <button className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-400 rounded transition-all" onClick={e => { e.stopPropagation(); handleDeleteInterviewGuide(job.id); }} title="删除面试指导"><Trash2 size={11} /></button>
                 </div>
                 {jobResumes.map(resume => <div key={resume.id} className={`group flex items-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-gray-800 transition-colors ${selectedResumeId === resume.id ? 'bg-gray-800 text-primary-300' : 'text-gray-400'}`} onClick={() => editingResumeId !== resume.id && onSelectResume(resume)}>
                   <FileText size={12} className="flex-shrink-0" />
