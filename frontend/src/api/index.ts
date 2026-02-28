@@ -126,50 +126,70 @@ export const streamChat = async (
 };
 
 // Export
-export const getExportPdfUrl = (resumeId: number) =>
-  `${BASE_URL}/export/pdf/${resumeId}`;
+export interface ExportOptions {
+  fontSize: number;
+  marginCm: number;
+}
+
+export const getExportPdfUrl = (resumeId: number, options?: ExportOptions) => {
+  const u = `${BASE_URL}/export/pdf/${resumeId}`;
+  if (!options) return u;
+  const p = new URLSearchParams();
+  p.set('font_size', String(options.fontSize));
+  p.set('margin_cm', String(options.marginCm));
+  return `${u}?${p}`;
+};
+
+export const getExportWordUrl = (resumeId: number, options?: ExportOptions) => {
+  const u = `${BASE_URL}/export/word/${resumeId}`;
+  if (!options) return u;
+  const p = new URLSearchParams();
+  p.set('font_size', String(options.fontSize));
+  p.set('margin_cm', String(options.marginCm));
+  return `${u}?${p}`;
+};
+
+export const getPreviewPdfUrl = (resumeId: number, options?: ExportOptions) => {
+  const u = `${BASE_URL}/export/pdf-preview/${resumeId}`;
+  if (!options) return u;
+  const p = new URLSearchParams();
+  p.set('font_size', String(options.fontSize));
+  p.set('margin_cm', String(options.marginCm));
+  return `${u}?${p}`;
+};
 
 export const getExportMarkdownUrl = (resumeId: number) =>
   `${BASE_URL}/export/markdown/${resumeId}`;
 
-export const getExportWordUrl = (resumeId: number) =>
-  `${BASE_URL}/export/word/${resumeId}`;
-
-export const getPreviewPdfUrl = (resumeId: number) =>
-  `${BASE_URL}/export/pdf-preview/${resumeId}`;
-
-/** Trigger download of resume as PDF; returns filename on success. */
-export async function downloadResumePdf(resumeId: number): Promise<string> {
-  const url = getExportPdfUrl(resumeId);
+/** Fetch export blob and trigger save-as (user chooses path via browser save dialog). */
+export async function downloadResumeWithOptions(
+  format: 'pdf' | 'word',
+  resumeId: number,
+  options: ExportOptions,
+  suggestedFilename: string
+): Promise<void> {
+  const url = format === 'pdf' ? getExportPdfUrl(resumeId, options) : getExportWordUrl(resumeId, options);
   const res = await fetch(url);
-  if (!res.ok) throw new Error('导出 PDF 失败');
+  if (!res.ok) throw new Error(format === 'pdf' ? '导出 PDF 失败' : '导出 Word 失败');
   const blob = await res.blob();
-  const disposition = res.headers.get('Content-Disposition');
-  const match = disposition?.match(/filename="?([^";\n]+)"?/);
-  const filename = match ? decodeURIComponent(match[1].trim()) : `resume_${resumeId}.pdf`;
+  const ext = format === 'pdf' ? 'pdf' : 'docx';
+  const name = suggestedFilename.replace(/\.[^.]+$/, '') + '.' + ext;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = filename;
+  a.download = name;
   a.click();
   URL.revokeObjectURL(a.href);
-  return filename;
 }
 
-/** Trigger download of resume as Word; returns filename on success. */
+/** Legacy: direct download without options (for backward compat). */
+export async function downloadResumePdf(resumeId: number): Promise<string> {
+  await downloadResumeWithOptions('pdf', resumeId, { fontSize: 10, marginCm: 2 }, `resume_${resumeId}`);
+  return `resume_${resumeId}.pdf`;
+}
+
 export async function downloadResumeWord(resumeId: number): Promise<string> {
-  const url = getExportWordUrl(resumeId);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('导出 Word 失败');
-  const blob = await res.blob();
-  const disposition = res.headers.get('Content-Disposition');
-  const match = disposition?.match(/filename="?([^";\n]+)"?/);
-  const filename = match ? decodeURIComponent(match[1].trim()) : `resume_${resumeId}.docx`;
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-  return filename;
+  await downloadResumeWithOptions('word', resumeId, { fontSize: 11, marginCm: 2 }, `resume_${resumeId}`);
+  return `resume_${resumeId}.docx`;
 }
 
 export const extractTextFromFile = async (file: File): Promise<{filename: string; text: string; parser: string}> => {

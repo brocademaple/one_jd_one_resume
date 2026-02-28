@@ -4,6 +4,7 @@ import re
 from typing import Optional
 
 from docx import Document
+from docx.shared import Pt, Cm
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from reportlab.lib import colors
@@ -45,7 +46,8 @@ def _strip_md_inline(text: str) -> str:
     return s
 
 
-def md_to_pdf_content(md_text: str):
+def md_to_pdf_content(md_text: str, font_size: int = 10):
+    """font_size: 9, 10, 11, 12 (body text base)."""
     font_path_regular = None
     font_candidates = [
         # Windows
@@ -81,11 +83,14 @@ def md_to_pdf_content(md_text: str):
         base_font = "Helvetica"
 
     getSampleStyleSheet()
-    style_h1 = ParagraphStyle("H1", fontName=base_font, fontSize=18, spaceAfter=6, spaceBefore=10, textColor=colors.HexColor("#1a1a2e"), leading=22)
-    style_h2 = ParagraphStyle("H2", fontName=base_font, fontSize=13, spaceAfter=4, spaceBefore=8, textColor=colors.HexColor("#16213e"), leading=17)
-    style_h3 = ParagraphStyle("H3", fontName=base_font, fontSize=11, spaceAfter=3, spaceBefore=5, textColor=colors.HexColor("#0f3460"), leading=14)
-    style_body = ParagraphStyle("Body", fontName=base_font, fontSize=10, spaceAfter=2, spaceBefore=1, leading=14, textColor=colors.HexColor("#333333"))
-    style_bullet = ParagraphStyle("Bullet", fontName=base_font, fontSize=10, spaceAfter=2, spaceBefore=1, leading=14, leftIndent=15, textColor=colors.HexColor("#333333"))
+    h1_size = max(14, font_size + 8)
+    h2_size = max(11, font_size + 3)
+    h3_size = max(10, font_size + 1)
+    style_h1 = ParagraphStyle("H1", fontName=base_font, fontSize=h1_size, spaceAfter=6, spaceBefore=10, textColor=colors.HexColor("#1a1a2e"), leading=h1_size + 4)
+    style_h2 = ParagraphStyle("H2", fontName=base_font, fontSize=h2_size, spaceAfter=4, spaceBefore=8, textColor=colors.HexColor("#16213e"), leading=h2_size + 4)
+    style_h3 = ParagraphStyle("H3", fontName=base_font, fontSize=h3_size, spaceAfter=3, spaceBefore=5, textColor=colors.HexColor("#0f3460"), leading=h3_size + 3)
+    style_body = ParagraphStyle("Body", fontName=base_font, fontSize=font_size, spaceAfter=2, spaceBefore=1, leading=font_size + 4, textColor=colors.HexColor("#333333"))
+    style_bullet = ParagraphStyle("Bullet", fontName=base_font, fontSize=font_size, spaceAfter=2, spaceBefore=1, leading=font_size + 4, leftIndent=15, textColor=colors.HexColor("#333333"))
 
     story = []
     for line in md_text.split("\n"):
@@ -116,15 +121,24 @@ def md_to_pdf_content(md_text: str):
 
 
 @router.get("/pdf/{resume_id}")
-def export_pdf(resume_id: int, db: Session = Depends(get_db)):
+def export_pdf(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    font_size: int = 10,
+    margin_cm: float = 2.0,
+):
+    """font_size: 9-12, margin_cm: 1.5, 2.0, 2.5"""
+    font_size = max(9, min(12, font_size))
+    margin_cm = max(1.0, min(3.0, margin_cm))
     db_resume = db.query(models.Resume).filter(models.Resume.id == resume_id).first()
     if not db_resume:
         raise HTTPException(status_code=404, detail="Resume not found")
 
     content = _clean_content(db_resume.content)
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2 * cm, leftMargin=2 * cm, topMargin=2 * cm, bottomMargin=2 * cm)
-    doc.build(md_to_pdf_content(content))
+    m = margin_cm * cm
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=m, leftMargin=m, topMargin=m, bottomMargin=m)
+    doc.build(md_to_pdf_content(content, font_size))
     buffer.seek(0)
 
     filename = _safe_filename(db_resume.title, "pdf", f"resume_{resume_id}.pdf")
@@ -132,37 +146,71 @@ def export_pdf(resume_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/pdf-preview/{resume_id}")
-def preview_pdf(resume_id: int, db: Session = Depends(get_db)):
-    response = export_pdf(resume_id, db)
+def preview_pdf(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    font_size: int = 10,
+    margin_cm: float = 2.0,
+):
+    response = export_pdf(resume_id, db, font_size, margin_cm)
     filename = response.headers["Content-Disposition"].split('filename="')[-1].rstrip('"')
     response.headers["Content-Disposition"] = f'inline; filename="{filename}"'
     return response
 
 
+def _add_paragraph_with_font(doc: Document, text: str, style_name: Optional[str] = None, font_pt: int = 11):
+    p = doc.add_paragraph(text, style=style_name)
+    for run in p.runs:
+        run.font.size = Pt(font_pt)
+    return p
+
+
 @router.get("/word/{resume_id}")
-def export_word(resume_id: int, db: Session = Depends(get_db)):
+def export_word(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    font_size: int = 11,
+    margin_cm: float = 2.0,
+):
+    """font_size: 10, 11, 12, 14 (pt). margin_cm: 1.5, 2.0, 2.5"""
+    font_size = max(9, min(14, font_size))
+    margin_cm = max(1.0, min(3.0, margin_cm))
     db_resume = db.query(models.Resume).filter(models.Resume.id == resume_id).first()
     if not db_resume:
         raise HTTPException(status_code=404, detail="Resume not found")
 
     content = _clean_content(db_resume.content)
     doc = Document()
+    for section in doc.sections:
+        section.top_margin = Cm(margin_cm)
+        section.bottom_margin = Cm(margin_cm)
+        section.left_margin = Cm(margin_cm)
+        section.right_margin = Cm(margin_cm)
     for line in content.splitlines():
         text = line.strip()
         if not text:
             doc.add_paragraph("")
             continue
         clean = _strip_md_inline(text)
+        h1_pt = min(22, font_size + 8)
+        h2_pt = min(16, font_size + 4)
+        h3_pt = min(14, font_size + 2)
         if text.startswith("# "):
-            doc.add_heading(clean[2:].strip(), level=1)
+            p = doc.add_heading(clean[2:].strip(), level=1)
+            for run in p.runs:
+                run.font.size = Pt(h1_pt)
         elif text.startswith("## "):
-            doc.add_heading(clean[3:].strip(), level=2)
+            p = doc.add_heading(clean[3:].strip(), level=2)
+            for run in p.runs:
+                run.font.size = Pt(h2_pt)
         elif text.startswith("### "):
-            doc.add_heading(clean[4:].strip(), level=3)
+            p = doc.add_heading(clean[4:].strip(), level=3)
+            for run in p.runs:
+                run.font.size = Pt(h3_pt)
         elif text.startswith("- ") or text.startswith("* "):
-            doc.add_paragraph(clean[2:].strip(), style="List Bullet")
+            _add_paragraph_with_font(doc, clean[2:].strip(), style="List Bullet", font_pt=font_size)
         else:
-            doc.add_paragraph(clean)
+            _add_paragraph_with_font(doc, clean, font_pt=font_size)
 
     buffer = io.BytesIO()
     doc.save(buffer)

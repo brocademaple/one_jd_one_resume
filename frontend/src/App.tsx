@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { JDAndInterviewGuideColumn } from './components/JDAndInterviewGuideColumn';
 import { ResumePanel } from './components/ResumePanel';
@@ -6,22 +6,45 @@ import { ChatPanel } from './components/ChatPanel';
 import { ResizablePanels } from './components/ResizablePanels';
 import { ResizableDivider } from './components/ResizableDivider';
 import { SettingsModal } from './components/SettingsModal';
-import { Job, Resume, CurrentProvider } from './types';
+import { ToastContainer } from './components/Toast';
+import { useAppStore } from './store/useAppStore';
 import { fetchJobs, fetchResumes, createResume, fetchCurrentProvider } from './api';
+import { handleApiError } from './utils/errorHandler';
 
 function App() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [resumes, setResumes] = useState<Resume[]>([]);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
-  const [currentProvider, setCurrentProvider] = useState<CurrentProvider | null>(null);
-  const [sidebarWidth, setSidebarWidth] = useState(256);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [expandInterviewGuide, setExpandInterviewGuide] = useState(false);
-  const [interviewNotesRefreshKey, setInterviewNotesRefreshKey] = useState(0);
   const mainRef = useRef<HTMLDivElement>(null);
+
+  // Use Zustand store
+  const {
+    jobs,
+    resumes,
+    selectedJob,
+    selectedResume,
+    loading,
+    showSettings,
+    currentProvider,
+    sidebarWidth,
+    sidebarCollapsed,
+    expandInterviewGuide,
+    interviewNotesRefreshKey,
+    setJobs,
+    setResumes,
+    setLoading,
+    setCurrentProvider,
+    setShowSettings,
+    setSidebarWidth,
+    setSidebarCollapsed,
+    setExpandInterviewGuide,
+    incrementInterviewNotesRefreshKey,
+    addJob,
+    updateJob,
+    deleteJob,
+    addResume,
+    updateResume,
+    deleteResume,
+    selectJob,
+    selectResume
+  } = useAppStore();
 
   useEffect(() => {
     if (!expandInterviewGuide) return;
@@ -33,10 +56,10 @@ function App() {
     try {
       const info = await fetchCurrentProvider();
       setCurrentProvider(info);
-    } catch {
-      // silently ignore
+    } catch (err) {
+      handleApiError(err, '加载模型信息失败');
     }
-  }, []);
+  }, [setCurrentProvider]);
 
   useEffect(() => {
     const load = async () => {
@@ -49,64 +72,46 @@ function App() {
         setResumes(resumesData);
         await loadProviderInfo();
       } catch (err) {
-        console.error('Failed to load data:', err);
+        handleApiError(err, '加载数据失败');
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [loadProviderInfo]);
+  }, [loadProviderInfo, setJobs, setResumes, setLoading]);
 
-  const handleSelectJob = useCallback((job: Job) => {
-    setSelectedJob(job);
-    const jobResumes = resumes.filter(r => r.job_id === job.id);
-    if (jobResumes.length > 0) {
-      setSelectedResume(jobResumes[0]);
-    } else {
-      setSelectedResume(null);
-    }
-  }, [resumes]);
+  // Simplified handlers using Zustand actions
+  const handleSelectJob = useCallback((job: typeof selectedJob) => {
+    if (job) selectJob(job);
+  }, [selectJob]);
 
-  const handleSelectResume = useCallback((resume: Resume) => {
-    setSelectedResume(resume);
-    const job = jobs.find(j => j.id === resume.job_id);
-    if (job) setSelectedJob(job);
-  }, [jobs]);
+  const handleSelectResume = useCallback((resume: typeof selectedResume) => {
+    if (resume) selectResume(resume);
+  }, [selectResume]);
 
-  const handleJobCreated = useCallback((job: Job) => {
-    setJobs(prev => [job, ...prev]);
-    setSelectedJob(job);
-    setSelectedResume(null);
-  }, []);
+  const handleJobCreated = useCallback((job: typeof selectedJob) => {
+    if (job) addJob(job);
+  }, [addJob]);
 
-  const handleJobUpdated = useCallback((job: Job) => {
-    setJobs(prev => prev.map(j => j.id === job.id ? job : j));
-    setSelectedJob(job);
-  }, []);
+  const handleJobUpdated = useCallback((job: typeof selectedJob) => {
+    if (job) updateJob(job);
+  }, [updateJob]);
 
   const handleJobDeleted = useCallback((jobId: number) => {
-    setJobs(prev => prev.filter(j => j.id !== jobId));
-    setResumes(prev => prev.filter(r => r.job_id !== jobId));
-    if (selectedJob?.id === jobId) {
-      setSelectedJob(null);
-      setSelectedResume(null);
-    }
-  }, [selectedJob]);
+    deleteJob(jobId);
+  }, [deleteJob]);
 
-  const handleResumeCreated = useCallback((resume: Resume) => {
-    setResumes(prev => [resume, ...prev]);
-    setSelectedResume(resume);
-  }, []);
+  const handleResumeCreated = useCallback((resume: typeof selectedResume) => {
+    if (resume) addResume(resume);
+  }, [addResume]);
 
-  const handleResumeUpdated = useCallback((resume: Resume) => {
-    setResumes(prev => prev.map(r => r.id === resume.id ? resume : r));
-    if (selectedResume?.id === resume.id) setSelectedResume(resume);
-  }, [selectedResume]);
+  const handleResumeUpdated = useCallback((resume: typeof selectedResume) => {
+    if (resume) updateResume(resume);
+  }, [updateResume]);
 
   const handleResumeDeleted = useCallback((resumeId: number) => {
-    setResumes(prev => prev.filter(r => r.id !== resumeId));
-    if (selectedResume?.id === resumeId) setSelectedResume(null);
-  }, [selectedResume]);
+    deleteResume(resumeId);
+  }, [deleteResume]);
 
   const handleNewResume = useCallback(async (jobId: number) => {
     const job = jobs.find(j => j.id === jobId);
@@ -117,28 +122,26 @@ function App() {
         content: `# 简历\n\n> 请与Agent对话生成定制简历内容。`,
         title: '新建简历',
       });
-      setResumes(prev => [resume, ...prev]);
-      setSelectedJob(job);
-      setSelectedResume(resume);
+      addResume(resume);
+      selectJob(job);
     } catch (err) {
-      console.error(err);
+      handleApiError(err, '创建简历失败');
     }
-  }, [jobs]);
+  }, [jobs, addResume, selectJob]);
 
   const handleSidebarResize = useCallback((delta: number) => {
-    setSidebarWidth(prev => Math.max(180, Math.min(400, prev + delta)));
-  }, []);
+    setSidebarWidth(Math.max(180, Math.min(400, sidebarWidth + delta)));
+  }, [sidebarWidth, setSidebarWidth]);
 
   const toggleSidebar = useCallback(() => {
-    setSidebarCollapsed(prev => {
-      if (prev) {
-        setSidebarWidth(256);
-        return false;
-      }
+    if (sidebarCollapsed) {
+      setSidebarWidth(256);
+      setSidebarCollapsed(false);
+    } else {
       setSidebarWidth(0);
-      return true;
-    });
-  }, []);
+      setSidebarCollapsed(true);
+    }
+  }, [sidebarCollapsed, setSidebarWidth, setSidebarCollapsed]);
 
   if (loading) {
     return (
@@ -152,7 +155,9 @@ function App() {
   }
 
   return (
-    <div ref={mainRef} className="flex w-full h-full overflow-hidden min-w-0">
+    <>
+      <ToastContainer />
+      <div ref={mainRef} className="flex w-full h-full overflow-hidden min-w-0">
       <div
         className="flex-shrink-0 overflow-hidden transition-all duration-200"
         style={{ width: sidebarCollapsed ? 0 : sidebarWidth, minWidth: sidebarCollapsed ? 0 : 180 }}
@@ -170,8 +175,8 @@ function App() {
         onResumeUpdated={handleResumeUpdated}
         onNewResume={handleNewResume}
         onExpandInterviewGuide={() => setExpandInterviewGuide(true)}
-        onInterviewGuideDeleted={() => setInterviewNotesRefreshKey(k => k + 1)}
-        onInterviewGuideRenamed={() => setInterviewNotesRefreshKey(k => k + 1)}
+        onInterviewGuideDeleted={incrementInterviewNotesRefreshKey}
+        onInterviewGuideRenamed={incrementInterviewNotesRefreshKey}
         currentProvider={currentProvider}
         onOpenSettings={() => setShowSettings(true)}
       />
@@ -197,7 +202,7 @@ function App() {
           resumeId={selectedResume?.id ?? null}
           onResumeCreated={handleResumeCreated}
           onResumeUpdated={handleResumeUpdated}
-          onInterviewNoteAdded={() => setInterviewNotesRefreshKey(k => k + 1)}
+          onInterviewNoteAdded={incrementInterviewNotesRefreshKey}
           currentProvider={currentProvider}
           onOpenSettings={() => setShowSettings(true)}
         />
@@ -213,7 +218,8 @@ function App() {
           }}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

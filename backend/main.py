@@ -30,7 +30,7 @@ try:
 except Exception:
     pass
 
-app = FastAPI(title="求职Agent", version="1.0.0")
+app = FastAPI(title="一岗一历 · OneJD OneResume", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,

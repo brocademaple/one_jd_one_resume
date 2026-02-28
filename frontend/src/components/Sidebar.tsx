@@ -161,7 +161,7 @@ export function Sidebar(props: SidebarProps) {
     <>
       <div className="flex flex-col h-full bg-gray-900 text-gray-100 w-full min-w-0 flex-shrink-0">
         <div className="px-4 py-4 border-b border-gray-700">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">求职 Agent</span>
+          <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider truncate" title="一岗一历 · OneJD OneResume">一岗一历 · OneJD OneResume</span>
           <button onClick={() => setShowNewJobModal(true)} className="mt-2 w-full flex items-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg text-sm font-medium transition-colors">
             <Plus size={16} />新建岗位
           </button>

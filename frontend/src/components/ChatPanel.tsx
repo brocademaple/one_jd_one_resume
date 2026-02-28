@@ -18,7 +18,7 @@ interface ChatPanelProps {
 
 const WELCOME_MESSAGE: Message = {
   role: 'assistant',
-  content: '你好！我是你的**求职助手**。\n\n我可以帮你：\n- **生成简历**：根据岗位信息和你的背景，生成定制简历\n- **优化简历**：按你的要求修改、润色简历内容\n- **面试辅导**：预测面试题、给出回答框架\n- **简历诊断**：分析简历与 JD 的匹配度\n\n请先点击「我的背景」填写你的经历，然后告诉我你想做什么。',
+  content: '你好！我是**一岗一历**，你的求职助手。\n\n我可以帮你：\n- **生成简历**：根据岗位信息和你的背景，生成定制简历\n- **优化简历**：按你的要求修改、润色简历内容\n- **面试辅导**：预测面试题、给出回答框架\n- **简历诊断**：分析简历与 JD 的匹配度\n\n请先点击「我的背景」填写你的经历，然后告诉我你想做什么。',
   timestamp: Date.now(),
 };
 
@@ -197,25 +197,7 @@ export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, o
         <div className={`w-7 h-7 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${msg.role === 'user' ? 'bg-primary-600 text-white' : 'bg-purple-100 text-purple-600'}`}>{msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}</div>
         <div className={`max-w-[85%] flex-1 min-w-0 ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}`}>
           {msg.role === 'assistant' ? (
-            <>
-              <div className="markdown-content text-sm"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content.replace(/===RESUME_START===[\s\S]*?===RESUME_END===/g, '*(简历已更新到右侧)*')}</ReactMarkdown></div>
-              {jobId && (
-                <button
-                  type="button"
-                  className="mt-1.5 flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 hover:underline"
-                  onClick={() => {
-                    const textToSave = msg.content.replace(/===RESUME_START===[\s\S]*?===RESUME_END===/g, '').trim();
-                    if (textToSave) {
-                      addInterviewNote(jobId, textToSave);
-                      onInterviewNoteAdded?.();
-                    }
-                  }}
-                  title="收藏到面试指导"
-                >
-                  <BookMarked size={12} /> 收藏到面试指导
-                </button>
-              )}
-            </>
+            <div className="markdown-content text-sm"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content.replace(/===RESUME_START===[\s\S]*?===RESUME_END===/g, '*(简历已更新到右侧)*')}</ReactMarkdown></div>
           ) : (
             <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
           )}
