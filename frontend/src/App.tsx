@@ -5,7 +5,12 @@ import { ResumePanel } from './components/ResumePanel';
 import { ChatPanel } from './components/ChatPanel';
 import { AppHeaderBar } from './components/AppHeaderBar';
 import { BackgroundProfileModal } from './components/background/BackgroundProfileModal';
-import { ResizablePanels } from './components/ResizablePanels';
+import { BackgroundImportModal } from './components/background/BackgroundImportModal';
+import {
+  ResizablePanels,
+  type ResizablePanelsHandle,
+  type PanelCollapseState,
+} from './components/ResizablePanels';
 import { ResizableDivider } from './components/ResizableDivider';
 import { SettingsModal } from './components/SettingsModal';
 import { ToastContainer } from './components/Toast';
@@ -18,7 +23,18 @@ import { useBackgroundProfiles } from './hooks/useBackgroundProfiles';
 function App() {
   const mainRef = useRef<HTMLDivElement>(null);
   const [showBgModal, setShowBgModal] = useState(false);
+  const [showBgImportModal, setShowBgImportModal] = useState(false);
   const bg = useBackgroundProfiles({ modalOpen: showBgModal });
+  const panelsRef = useRef<ResizablePanelsHandle>(null);
+  const [panelCollapsed, setPanelCollapsed] = useState<PanelCollapseState>({
+    jdCollapsed: false,
+    resumeCollapsed: false,
+    chatCollapsed: false,
+  });
+
+  const onPanelCollapseChange = useCallback((s: PanelCollapseState) => {
+    setPanelCollapsed(s);
+  }, []);
 
   // Use Zustand store
   const {
@@ -193,12 +209,25 @@ function App() {
         onResize={handleSidebarResize}
         onToggle={toggleSidebar}
         collapsed={sidebarCollapsed}
+        toggleExpandLabel="展开岗位栏"
+        toggleCollapseLabel="收起岗位栏"
       />
 
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden" style={{ flex: '1 1 0' }}>
-        <AppHeaderBar bg={bg} onOpenBackground={() => setShowBgModal(true)} />
+        <AppHeaderBar
+          bg={bg}
+          onOpenBackground={() => setShowBgModal(true)}
+          columnToggles={{
+            jdCollapsed: panelCollapsed.jdCollapsed,
+            resumeCollapsed: panelCollapsed.resumeCollapsed,
+            chatCollapsed: panelCollapsed.chatCollapsed,
+            onToggleJd: () => panelsRef.current?.toggleJd(),
+            onToggleResume: () => panelsRef.current?.toggleResume(),
+            onToggleChat: () => panelsRef.current?.toggleChat(),
+          }}
+        />
         <div className="flex-1 min-h-0 flex overflow-hidden">
-          <ResizablePanels>
+          <ResizablePanels ref={panelsRef} onCollapseStateChange={onPanelCollapseChange}>
             <JDAndInterviewGuideColumn
               job={selectedJob}
               onJobUpdated={handleJobUpdated}
@@ -224,12 +253,12 @@ function App() {
       <BackgroundProfileModal
         open={showBgModal}
         onClose={() => setShowBgModal(false)}
+        onOpenImportModal={() => setShowBgImportModal(true)}
         loadingProfiles={bg.loadingProfiles}
         profiles={bg.profiles}
         activeProfileId={bg.activeProfileId}
         editingName={bg.editingName}
         background={bg.background}
-        uploadingBg={bg.uploadingBg}
         savingBackground={bg.savingBackground}
         creatingProfileFromText={bg.creatingProfileFromText}
         backgroundSaved={bg.backgroundSaved}
@@ -239,12 +268,16 @@ function App() {
         onEditingNameChange={bg.setEditingName}
         onBackgroundChange={bg.setBackground}
         onSave={bg.handleSave}
-        onFileSelected={bg.handleFileImport}
         onCreateProfileFromParsedText={bg.handleCreateProfileFromParsedText}
         onEditorDirty={bg.markEditorDirty}
-        importDraftMode={bg.importDraftSnapshot != null}
-        onAbandonImportDraft={bg.abandonImportDraft}
-        onCommitImportDraft={bg.commitImportDraft}
+      />
+
+      <BackgroundImportModal
+        open={showBgImportModal}
+        onClose={() => setShowBgImportModal(false)}
+        parseBackgroundFile={bg.parseBackgroundFile}
+        createProfileFromImport={bg.createProfileFromImport}
+        committing={bg.savingBackground}
       />
 
       {showSettings && (

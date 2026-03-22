@@ -119,14 +119,14 @@ export function InterviewGuidePanel({ jobId, refreshKey = 0 }: InterviewGuidePan
             className="w-full h-full p-4 text-sm text-gray-700 outline-none resize-none font-mono leading-relaxed"
             value={editContent}
             onChange={e => setEditContent(e.target.value)}
-            placeholder="在此编辑 Markdown 内容，或从右侧对话中「收藏到面试指导」追加..."
+            placeholder="在此编辑 Markdown；从 Agent 对话右键或书签图标追加的内容会尽量保留 Markdown 结构..."
           />
         ) : (
           <div className="p-4 markdown-content bg-white/80 min-h-full">
             {content ? (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
             ) : (
-              <p className="text-gray-500 text-sm">暂无内容。可从右侧对话中选中文字右键「添加到面试指导中」，或点击助手消息下的「收藏到面试指导」。</p>
+              <p className="text-gray-500 text-sm">暂无内容。在助手消息中选中文本后右键「添加到面试指导」，或悬停助手气泡点击书签图标，将按 Markdown 写入此处。</p>
             )}
           </div>
         )}

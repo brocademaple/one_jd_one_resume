@@ -1,17 +1,17 @@
-import { X } from 'lucide-react';
+import { X, FileUp } from 'lucide-react';
 import type { BackgroundProfile } from '../../types';
-import { BackgroundUploadSection } from './BackgroundUploadSection';
 import { BackgroundProfileEditor } from './BackgroundProfileEditor';
 
 export interface BackgroundProfileModalProps {
   open: boolean;
   onClose: () => void;
+  /** 打开「从文件导入新人物」子弹窗 */
+  onOpenImportModal: () => void;
   loadingProfiles: boolean;
   profiles: BackgroundProfile[];
   activeProfileId: number | null;
   editingName: string;
   background: string;
-  uploadingBg: boolean;
   savingBackground: boolean;
   creatingProfileFromText: boolean;
   backgroundSaved: boolean;
@@ -21,26 +21,22 @@ export interface BackgroundProfileModalProps {
   onEditingNameChange: (v: string) => void;
   onBackgroundChange: (v: string) => void;
   onSave: () => void;
-  onFileSelected: (file: File) => void;
   onCreateProfileFromParsedText: () => void;
   onEditorDirty: () => void;
-  importDraftMode: boolean;
-  onAbandonImportDraft: () => void;
-  onCommitImportDraft: () => void;
 }
 
 /**
- * 「我的背景」弹窗：上传区与编辑区分为两个子模块组合。
+ * 「我的背景」弹窗：入口按钮打开导入子弹窗；编辑区在下方。
  */
 export function BackgroundProfileModal({
   open,
   onClose,
+  onOpenImportModal,
   loadingProfiles,
   profiles,
   activeProfileId,
   editingName,
   background,
-  uploadingBg,
   savingBackground,
   creatingProfileFromText,
   backgroundSaved,
@@ -50,12 +46,8 @@ export function BackgroundProfileModal({
   onEditingNameChange,
   onBackgroundChange,
   onSave,
-  onFileSelected,
   onCreateProfileFromParsedText,
   onEditorDirty,
-  importDraftMode,
-  onAbandonImportDraft,
-  onCommitImportDraft,
 }: BackgroundProfileModalProps) {
   if (!open) return null;
 
@@ -71,16 +63,22 @@ export function BackgroundProfileModal({
         <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
           <p className="text-xs text-gray-500">
             可维护多份人物档案并切换；对话时会使用当前选中档案的正文。包含：基本信息、学历、实习、项目、作品集等。
-            <strong className="text-gray-700"> 下方「导入文件」与「编辑正文」分开操作：</strong>
-            导入支持纯文本（.txt / .md）、PDF、Word、图片；其中<strong className="text-gray-700"> 简历 PDF </strong>经通义整理（需通义 API Key）。解析完成后进入<strong className="text-gray-700"> 待创建档案预览 </strong>，需点击「确认保存为新档案」才会入库；期间对话仍使用导入前的档案。
+            <strong className="text-gray-700"> 从文件新增人物：</strong>
+            点击下方按钮在单独窗口中选择文件并预览解析结果，确认后才会入库；期间不会改动此处编辑区。手动编辑与「从正文解析为新人物」仍在下方操作。
           </p>
 
-          <BackgroundUploadSection
-            uploading={uploadingBg}
-            disabled={loadingProfiles}
-            importDraftActive={importDraftMode}
-            onFileSelected={onFileSelected}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="text-xs inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-primary-300 bg-primary-50 text-primary-800 hover:bg-primary-100 disabled:opacity-50"
+              onClick={onOpenImportModal}
+              disabled={loadingProfiles}
+            >
+              <FileUp size={15} />
+              从文件导入新人物…
+            </button>
+            <span className="text-xs text-gray-500">支持 .txt / .md、PDF、Word、图片；简历 PDF 需通义 API Key</span>
+          </div>
 
           <div className="border-t border-gray-100 pt-4">
             <p className="text-xs font-medium text-gray-600 mb-2">编辑与展示</p>
@@ -101,10 +99,6 @@ export function BackgroundProfileModal({
               onSave={onSave}
               onCreateProfileFromParsedText={onCreateProfileFromParsedText}
               onDirty={onEditorDirty}
-              importDraftMode={importDraftMode}
-              onAbandonImportDraft={onAbandonImportDraft}
-              onCommitImportDraft={onCommitImportDraft}
-              committingImport={savingBackground}
             />
           </div>
         </div>

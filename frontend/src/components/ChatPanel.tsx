@@ -1,10 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, User, Loader2, MessageSquare, RefreshCw, ChevronDown, Settings, Sparkles, BookMarked } from 'lucide-react';
+import { Send, Bot, User, Loader2, MessageSquare, RefreshCw, ChevronDown, ChevronRight, Settings, Sparkles, BookMarked } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message, Resume, CurrentProvider } from '../types';
 import { streamChat, createResume, updateResume, fetchConversation, saveConversation } from '../api';
 import { addInterviewNote } from '../utils/interviewNotes';
+import {
+  findChatMessageContext,
+  htmlSelectionToMarkdown,
+  stripResumeMarkersFromAgentContent,
+} from '../utils/selectionToMarkdown';
 import { composeResumeTitleFromParts } from '../utils/resumeDefaultTitle';
 import type { BackgroundProfilesController } from '../hooks/useBackgroundProfiles';
 
@@ -27,6 +32,8 @@ const WELCOME_MESSAGE: Message = {
   timestamp: Date.now(),
 };
 
+const QUICK_TIPS_EXPANDED_KEY = 'onejd-chat-quicktips-expanded';
+
 const QUICK_PROMPTS = [
   { label: '生成简历', text: '请根据当前岗位信息和我的背景，帮我生成一份定制简历。' },
   { label: '面试辅导', text: '请针对这个岗位，给我 5-8 个高概率面试题及回答框架。' },
@@ -41,11 +48,22 @@ function extractResumeFromText(text: string): string | null {
   return startIdx !== -1 && endIdx > startIdx ? text.slice(startIdx + 18, endIdx).trim() : null;
 }
 
+function readQuickTipsExpanded(): boolean {
+  try {
+    const v = localStorage.getItem(QUICK_TIPS_EXPANDED_KEY);
+    if (v === null) return true;
+    return v === '1';
+  } catch {
+    return true;
+  }
+}
+
 export function ChatPanel({ jobId, jobTitle, resumeId, onResumeCreated, onResumeUpdated, onInterviewNoteAdded, onOpenSettings, bg }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  const [quickTipsExpanded, setQuickTipsExpanded] = useState(readQuickTipsExpanded);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; text: string } | null>(null);
@@ -69,11 +87,19 @@ export function ChatPanel({ jobId, jobTitle, resumeId, onResumeCreated, onResume
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     const sel = window.getSelection();
-    const text = sel?.toString()?.trim();
-    if (text && jobId) {
-      e.preventDefault();
-      setContextMenu({ x: e.clientX, y: e.clientY, text });
+    if (!sel || sel.rangeCount === 0 || !jobId) return;
+    const plain = sel.toString().trim();
+    if (!plain) return;
+    e.preventDefault();
+    const range = sel.getRangeAt(0);
+    const ctx = findChatMessageContext(range.commonAncestorContainer);
+    /** Agent 气泡内选区：用 HTML→Markdown 保留标题、列表、加粗等；否则仍为纯文本 */
+    let textForGuide = plain;
+    if (ctx) {
+      const md = htmlSelectionToMarkdown(range);
+      if (md.length > 0) textForGuide = md;
     }
+    setContextMenu({ x: e.clientX, y: e.clientY, text: textForGuide });
   }, [jobId]);
 
   useEffect(() => {
@@ -166,6 +192,18 @@ export function ChatPanel({ jobId, jobTitle, resumeId, onResumeCreated, onResume
     }
   };
 
+  const toggleQuickTips = useCallback(() => {
+    setQuickTipsExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(QUICK_TIPS_EXPANDED_KEY, next ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+
   return <div className="flex flex-col h-full bg-gray-50">
     <div className="panel-header">
       <span className="panel-title flex-1 min-w-0"><Bot size={16} className="text-purple-500" /><span className="truncate">求职 Agent</span></span>
@@ -187,16 +225,40 @@ export function ChatPanel({ jobId, jobTitle, resumeId, onResumeCreated, onResume
       }}
       onContextMenu={handleContextMenu}
     >
-      {messages.map((msg, i) => <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-        <div className={`w-7 h-7 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${msg.role === 'user' ? 'bg-primary-600 text-white' : 'bg-purple-100 text-purple-600'}`}>{msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}</div>
-        <div className={`max-w-[85%] flex-1 min-w-0 ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}`}>
-          {msg.role === 'assistant' ? (
-            <div className="markdown-content text-sm"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content.replace(/===RESUME_START===[\s\S]*?===RESUME_END===/g, '*(简历已更新到右侧)*')}</ReactMarkdown></div>
-          ) : (
-            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-          )}
+      {messages.map((msg, i) => (
+        <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+          <div className={`w-7 h-7 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${msg.role === 'user' ? 'bg-primary-600 text-white' : 'bg-purple-100 text-purple-600'}`}>{msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}</div>
+          <div
+            className={`relative max-w-[85%] flex-1 min-w-0 group/bubble ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}`}
+            data-chat-md-role={msg.role}
+            data-chat-msg-index={i}
+          >
+            {msg.role === 'assistant' && jobId ? (
+              <button
+                type="button"
+                className="absolute top-1.5 right-1.5 z-[1] p-1 rounded-md bg-white/95 border border-amber-200/90 text-amber-700 shadow-sm opacity-0 group-hover/bubble:opacity-100 hover:bg-amber-50 transition-opacity"
+                title="将本回复以 Markdown 加入面试指导"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const raw = stripResumeMarkersFromAgentContent(msg.content);
+                  if (!raw) return;
+                  addInterviewNote(jobId, raw);
+                  onInterviewNoteAdded?.();
+                }}
+              >
+                <BookMarked size={12} />
+              </button>
+            ) : null}
+            {msg.role === 'assistant' ? (
+              <div className="markdown-content text-sm pr-7">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content.replace(/===RESUME_START===[\s\S]*?===RESUME_END===/g, '*(简历已更新到右侧)*')}</ReactMarkdown>
+              </div>
+            ) : (
+              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+            )}
+          </div>
         </div>
-      </div>)}
+      ))}
       {streaming && <div className="chat-bubble-assistant max-w-[85%]"><ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown></div>}
       <div ref={messagesEndRef} />
     </div>
@@ -219,25 +281,54 @@ export function ChatPanel({ jobId, jobTitle, resumeId, onResumeCreated, onResume
           }}
         >
           <BookMarked size={14} className="text-amber-500 flex-shrink-0" />
-          添加到面试指导中
+          添加到面试指导（尽量保留 Markdown）
         </button>
       </div>
     )}
 
-    <div className="px-3 pt-1 pb-2">
-      <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1"><BookMarked size={12} className="flex-shrink-0" />选中内容后右键，可以将内容存入面试指导</p>
-      <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1"><Sparkles size={12} />快捷提示</p>
-      <div className="flex flex-wrap gap-1.5">
-        {QUICK_PROMPTS.map((p) => (
-          <button
-            key={p.label}
-            className="text-xs px-2.5 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-lg border border-primary-100 transition-colors"
-            onClick={() => handleQuickPrompt(p.text)}
-            disabled={!jobId || streaming}
-          >
-            {p.label}
-          </button>
-        ))}
+    <div className="flex-shrink-0 border-t border-gray-200 bg-gray-100/90">
+      <button
+        type="button"
+        className="w-full flex items-center justify-center gap-2 py-1.5 px-3 text-xs text-gray-600 hover:bg-gray-200/80 hover:text-gray-800 transition-colors"
+        onClick={toggleQuickTips}
+        aria-expanded={quickTipsExpanded}
+        title={quickTipsExpanded ? '向下收起快捷区' : '展开快捷提示'}
+      >
+        {quickTipsExpanded ? (
+          <ChevronDown size={15} className="text-gray-500 flex-shrink-0" aria-hidden />
+        ) : (
+          <ChevronRight size={15} className="text-gray-500 flex-shrink-0" aria-hidden />
+        )}
+        <Sparkles size={12} className="text-primary-600 flex-shrink-0 opacity-90" aria-hidden />
+        <span>{quickTipsExpanded ? '收起快捷区' : '展开快捷提示'}</span>
+      </button>
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${quickTipsExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="px-3 pt-1 pb-2 bg-gray-50 border-t border-gray-100">
+            <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1">
+              <BookMarked size={12} className="flex-shrink-0" />
+              在助手消息中选中文本后右键，可按 Markdown 结构存入面试指导；或悬停助手气泡点击书签图标收藏整段
+            </p>
+            <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1">
+              <Sparkles size={12} />
+              快捷提示
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_PROMPTS.map((p) => (
+                <button
+                  key={p.label}
+                  className="text-xs px-2.5 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-lg border border-primary-100 transition-colors"
+                  onClick={() => handleQuickPrompt(p.text)}
+                  disabled={!jobId || streaming}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -252,7 +343,13 @@ export function ChatPanel({ jobId, jobTitle, resumeId, onResumeCreated, onResume
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
           disabled={streaming || !jobId}
-          placeholder={jobId ? '输入消息，或点击上方快捷提示...' : '请先选择或新建岗位'}
+          placeholder={
+            jobId
+              ? quickTipsExpanded
+                ? '输入消息，或点击上方快捷提示...'
+                : '输入消息，或点击「展开快捷提示」使用快捷按钮...'
+              : '请先选择或新建岗位'
+          }
         />
         <button className="w-10 h-10 bg-primary-600 text-white rounded-xl flex items-center justify-center" onClick={handleSend} disabled={streaming || !input.trim() || !jobId}>{streaming ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
       </div>
