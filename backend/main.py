@@ -27,6 +27,12 @@ try:
             conn.execute(text("ALTER TABLE jobs ADD COLUMN job_url VARCHAR(500)"))
         if "salary" not in cols:
             conn.execute(text("ALTER TABLE jobs ADD COLUMN salary VARCHAR(128)"))
+        # user_backgrounds：多人背景档案显示名
+        result_bg = conn.execute(text("PRAGMA table_info(user_backgrounds)"))
+        bg_cols = [r[1] for r in result_bg]
+        if "name" not in bg_cols:
+            conn.execute(text("ALTER TABLE user_backgrounds ADD COLUMN name VARCHAR(200) DEFAULT '默认'"))
+            conn.execute(text("UPDATE user_backgrounds SET name = '默认' WHERE name IS NULL OR name = ''"))
 except Exception:
     pass
 

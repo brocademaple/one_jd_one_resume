@@ -93,8 +93,9 @@ class ConversationResponse(BaseModel):
         from_attributes = True
 
 
-class UserBackgroundResponse(BaseModel):
+class BackgroundProfileResponse(BaseModel):
     id: int
+    name: str
     content: str
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -103,5 +104,11 @@ class UserBackgroundResponse(BaseModel):
         from_attributes = True
 
 
-class UserBackgroundUpdate(BaseModel):
-    content: str
+class BackgroundProfileCreate(BaseModel):
+    name: str = "新档案"
+    content: str = ""
+
+
+class BackgroundProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    content: Optional[str] = None

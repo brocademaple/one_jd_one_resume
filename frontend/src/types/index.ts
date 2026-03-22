@@ -72,8 +72,10 @@ export interface CurrentProvider {
   model_name: string;
 }
 
-export interface UserBackground {
+/** 人物背景档案（可多条切换） */
+export interface BackgroundProfile {
   id: number;
+  name: string;
   content: string;
   created_at: string;
   updated_at?: string;

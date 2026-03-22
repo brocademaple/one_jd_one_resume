@@ -192,12 +192,30 @@ export async function downloadResumeWord(resumeId: number): Promise<string> {
   return `resume_${resumeId}.docx`;
 }
 
-export const extractTextFromFile = async (file: File): Promise<{filename: string; text: string; parser: string}> => {
+export const extractTextFromFile = async (
+  file: File,
+): Promise<{ filename: string; text: string; parser: string; warning?: string }> => {
   const formData = new FormData();
   formData.append('file', file);
   const res = await fetch(`${BASE_URL}/uploads/extract`, { method: 'POST', body: formData });
   if (!res.ok) throw new Error('文件解析失败');
   return res.json();
+};
+
+/** 简历 PDF → 通义整理/多模态识别为候选人背景 Markdown（需配置通义 API Key） */
+export const parseResumePdfForBackground = async (
+  file: File,
+): Promise<{ filename: string; text: string; parser: string; warning?: string }> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${BASE_URL}/uploads/parse-resume-background`, { method: 'POST', body: formData });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const d = (data as { detail?: string | string[] }).detail;
+    const msg = Array.isArray(d) ? d.join('; ') : d;
+    throw new Error(typeof msg === 'string' ? msg : 'PDF 简历解析失败');
+  }
+  return data as { filename: string; text: string; parser: string; warning?: string };
 };
 
 export const parseJobFromFile = async (file: File): Promise<{title: string; company?: string; content: string}> => {
@@ -270,19 +288,45 @@ export const saveConversation = async (resumeId: number, messages: Message[]): P
   if (!res.ok) throw new Error('Failed to save conversation');
 };
 
-// User Background
-export const fetchUserBackground = async (): Promise<import('../types').UserBackground> => {
-  const res = await fetch(`${BASE_URL}/background`);
-  if (!res.ok) throw new Error('Failed to fetch user background');
+// 人物背景档案（多条 CRUD）
+export const fetchBackgroundProfiles = async (): Promise<import('../types').BackgroundProfile[]> => {
+  const res = await fetch(`${BASE_URL}/background/profiles`);
+  if (!res.ok) throw new Error('Failed to fetch background profiles');
   return res.json();
 };
 
-export const updateUserBackground = async (content: string): Promise<import('../types').UserBackground> => {
-  const res = await fetch(`${BASE_URL}/background`, {
+export const createBackgroundProfile = async (data: {
+  name?: string;
+  content?: string;
+}): Promise<import('../types').BackgroundProfile> => {
+  const res = await fetch(`${BASE_URL}/background/profiles`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: data.name ?? '新档案', content: data.content ?? '' }),
+  });
+  if (!res.ok) throw new Error('Failed to create background profile');
+  return res.json();
+};
+
+export const updateBackgroundProfile = async (
+  id: number,
+  data: { name?: string; content?: string },
+): Promise<import('../types').BackgroundProfile> => {
+  const res = await fetch(`${BASE_URL}/background/profiles/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update user background');
+  if (!res.ok) throw new Error('Failed to update background profile');
   return res.json();
+};
+
+export const deleteBackgroundProfile = async (id: number): Promise<void> => {
+  const res = await fetch(`${BASE_URL}/background/profiles/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const d = (err as { detail?: string | string[] }).detail;
+    const msg = Array.isArray(d) ? d.join('; ') : d;
+    throw new Error(msg || 'Failed to delete background profile');
+  }
 };

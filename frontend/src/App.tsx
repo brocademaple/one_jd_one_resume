@@ -1,8 +1,10 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { JDAndInterviewGuideColumn } from './components/JDAndInterviewGuideColumn';
 import { ResumePanel } from './components/ResumePanel';
 import { ChatPanel } from './components/ChatPanel';
+import { AppHeaderBar } from './components/AppHeaderBar';
+import { BackgroundProfileModal } from './components/background/BackgroundProfileModal';
 import { ResizablePanels } from './components/ResizablePanels';
 import { ResizableDivider } from './components/ResizableDivider';
 import { SettingsModal } from './components/SettingsModal';
@@ -10,9 +12,13 @@ import { ToastContainer } from './components/Toast';
 import { useAppStore } from './store/useAppStore';
 import { fetchJobs, fetchResumes, createResume, fetchCurrentProvider } from './api';
 import { handleApiError } from './utils/errorHandler';
+import { fetchDefaultResumeTitle } from './utils/resumeDefaultTitle';
+import { useBackgroundProfiles } from './hooks/useBackgroundProfiles';
 
 function App() {
   const mainRef = useRef<HTMLDivElement>(null);
+  const [showBgModal, setShowBgModal] = useState(false);
+  const bg = useBackgroundProfiles({ modalOpen: showBgModal });
 
   // Use Zustand store
   const {
@@ -117,10 +123,11 @@ function App() {
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
     try {
+      const title = await fetchDefaultResumeTitle(job.title);
       const resume = await createResume({
         job_id: jobId,
         content: `# 简历\n\n> 请与Agent对话生成定制简历内容。`,
-        title: '新建简历',
+        title,
       });
       addResume(resume);
       selectJob(job);
@@ -188,26 +195,57 @@ function App() {
         collapsed={sidebarCollapsed}
       />
 
-      <div className="flex-1 min-w-0 flex overflow-hidden" style={{ flex: '1 1 0' }}>
-      <ResizablePanels>
-        <JDAndInterviewGuideColumn
-          job={selectedJob}
-          onJobUpdated={handleJobUpdated}
-          expandInterviewGuide={expandInterviewGuide}
-          interviewNotesRefreshKey={interviewNotesRefreshKey}
-        />
-        <ResumePanel resume={selectedResume} onResumeUpdated={handleResumeUpdated} />
-        <ChatPanel
-          jobId={selectedJob?.id ?? null}
-          resumeId={selectedResume?.id ?? null}
-          onResumeCreated={handleResumeCreated}
-          onResumeUpdated={handleResumeUpdated}
-          onInterviewNoteAdded={incrementInterviewNotesRefreshKey}
-          currentProvider={currentProvider}
-          onOpenSettings={() => setShowSettings(true)}
-        />
-      </ResizablePanels>
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden" style={{ flex: '1 1 0' }}>
+        <AppHeaderBar bg={bg} onOpenBackground={() => setShowBgModal(true)} />
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+          <ResizablePanels>
+            <JDAndInterviewGuideColumn
+              job={selectedJob}
+              onJobUpdated={handleJobUpdated}
+              expandInterviewGuide={expandInterviewGuide}
+              interviewNotesRefreshKey={interviewNotesRefreshKey}
+            />
+            <ResumePanel resume={selectedResume} onResumeUpdated={handleResumeUpdated} />
+            <ChatPanel
+              jobId={selectedJob?.id ?? null}
+              jobTitle={selectedJob?.title ?? null}
+              resumeId={selectedResume?.id ?? null}
+              onResumeCreated={handleResumeCreated}
+              onResumeUpdated={handleResumeUpdated}
+              onInterviewNoteAdded={incrementInterviewNotesRefreshKey}
+              currentProvider={currentProvider}
+              onOpenSettings={() => setShowSettings(true)}
+              bg={bg}
+            />
+          </ResizablePanels>
+        </div>
       </div>
+
+      <BackgroundProfileModal
+        open={showBgModal}
+        onClose={() => setShowBgModal(false)}
+        loadingProfiles={bg.loadingProfiles}
+        profiles={bg.profiles}
+        activeProfileId={bg.activeProfileId}
+        editingName={bg.editingName}
+        background={bg.background}
+        uploadingBg={bg.uploadingBg}
+        savingBackground={bg.savingBackground}
+        creatingProfileFromText={bg.creatingProfileFromText}
+        backgroundSaved={bg.backgroundSaved}
+        onSelectProfile={bg.handleSelectProfile}
+        onNewProfile={bg.handleNewProfile}
+        onDeleteProfile={bg.handleDeleteProfile}
+        onEditingNameChange={bg.setEditingName}
+        onBackgroundChange={bg.setBackground}
+        onSave={bg.handleSave}
+        onFileSelected={bg.handleFileImport}
+        onCreateProfileFromParsedText={bg.handleCreateProfileFromParsedText}
+        onEditorDirty={bg.markEditorDirty}
+        importDraftMode={bg.importDraftSnapshot != null}
+        onAbandonImportDraft={bg.abandonImportDraft}
+        onCommitImportDraft={bg.commitImportDraft}
+      />
 
       {showSettings && (
         <SettingsModal

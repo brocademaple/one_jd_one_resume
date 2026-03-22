@@ -40,7 +40,8 @@ export function HorizontalResizableDivider({ onResize, onToggle, collapsed }: Ho
     [handleMouseMove, handleMouseUp],
   );
 
-  const ArrowIcon = collapsed ? ChevronDown : ChevronUp;
+  // 面试指导在下方：收起时箭头向上（示意向上展开）；展开时箭头向下（示意向下收起）
+  const ArrowIcon = collapsed ? ChevronUp : ChevronDown;
 
   return (
     <div

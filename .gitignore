@@ -19,6 +19,9 @@ env/
 .env
 .env.local
 
+# 本地模型与密钥（勿提交）
+backend/ai_settings.json
+
 # Node.js
 node_modules/
 frontend/dist/
@@ -27,3 +30,6 @@ frontend/dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# Cursor 本地配置（按需改为提交 .cursor/rules 等）
+.cursor/

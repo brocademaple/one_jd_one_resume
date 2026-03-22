@@ -5,6 +5,8 @@ from typing import Optional
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
+from resume_background_parser import parse_resume_pdf_to_background
+
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
 
@@ -12,6 +14,13 @@ class TextExtractResponse(BaseModel):
     filename: str
     text: str
     parser: str
+
+
+class ParseResumeBackgroundResponse(BaseModel):
+    filename: str
+    text: str
+    parser: str
+    warning: Optional[str] = None
 
 
 class JobParseResponse(BaseModel):
@@ -46,15 +55,29 @@ def _ocr_from_image(content: bytes) -> str:
     return pytesseract.image_to_string(image, lang="chi_sim+eng").strip()
 
 
+def _extract_from_plain_text(content: bytes) -> str:
+    """纯文本 / Markdown：按 BOM → UTF-8 → 国标中文编码依次尝试解码。"""
+    if not content:
+        return ""
+    for encoding in ("utf-8-sig", "utf-8", "gb18030", "gbk"):
+        try:
+            return content.decode(encoding).strip()
+        except UnicodeDecodeError:
+            continue
+    return content.decode("utf-8", errors="replace").strip()
+
+
 def extract_text_from_file(filename: str, content: bytes):
     lower = filename.lower()
+    if lower.endswith((".txt", ".md", ".markdown")):
+        return _extract_from_plain_text(content), "text_plain"
     if lower.endswith(".pdf"):
         return _extract_from_pdf(content), "pdf"
     if lower.endswith(".doc") or lower.endswith(".docx"):
         return _extract_from_docx(content), "word"
     if lower.endswith((".png", ".jpg", ".jpeg", ".bmp", ".webp")):
         return _ocr_from_image(content), "ocr"
-    raise HTTPException(status_code=400, detail="仅支持 PDF/Word/图片 文件")
+    raise HTTPException(status_code=400, detail="仅支持 PDF/Word/图片/纯文本(.txt、.md) 文件")
 
 
 def _parse_job_fields(text: str) -> JobParseResponse:
@@ -77,6 +100,29 @@ def _parse_job_fields(text: str) -> JobParseResponse:
         company=company,
         content=text.strip(),
         source="auto_parse",
+    )
+
+
+@router.post("/parse-resume-background", response_model=ParseResumeBackgroundResponse)
+async def parse_resume_background(file: UploadFile = File(...)):
+    """
+    简历 PDF → 候选人背景 Markdown（通义：文本整理或 VL 读图）。
+    需在设置中配置通义千问 API Key。
+    """
+    name = (file.filename or "").lower()
+    if not name.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="仅支持 PDF 简历文件")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="上传文件为空")
+
+    text, parser, warning = parse_resume_pdf_to_background(content)
+    return ParseResumeBackgroundResponse(
+        filename=file.filename or "resume.pdf",
+        text=text,
+        parser=parser,
+        warning=warning,
     )
 
 

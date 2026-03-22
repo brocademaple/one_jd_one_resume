@@ -1,24 +1,29 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, User, Loader2, MessageSquare, RefreshCw, ChevronDown, Settings, Upload, X, Sparkles, Save, Check, BookMarked } from 'lucide-react';
+import { Send, Bot, User, Loader2, MessageSquare, RefreshCw, ChevronDown, Settings, Sparkles, BookMarked } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message, Resume, CurrentProvider } from '../types';
-import { streamChat, createResume, updateResume, extractTextFromFile, fetchConversation, saveConversation, fetchUserBackground, updateUserBackground } from '../api';
+import { streamChat, createResume, updateResume, fetchConversation, saveConversation } from '../api';
 import { addInterviewNote } from '../utils/interviewNotes';
+import { composeResumeTitleFromParts } from '../utils/resumeDefaultTitle';
+import type { BackgroundProfilesController } from '../hooks/useBackgroundProfiles';
 
 interface ChatPanelProps {
   jobId: number | null;
+  /** 当前岗位标题，用于新建简历默认名称 */
+  jobTitle?: string | null;
   resumeId: number | null;
   onResumeCreated: (resume: Resume) => void;
   onResumeUpdated: (resume: Resume) => void;
   onInterviewNoteAdded?: () => void;
   currentProvider?: CurrentProvider | null;
   onOpenSettings?: () => void;
+  bg: BackgroundProfilesController;
 }
 
 const WELCOME_MESSAGE: Message = {
   role: 'assistant',
-  content: '你好！我是**一岗一历**，你的求职助手。\n\n我可以帮你：\n- **生成简历**：根据岗位信息和你的背景，生成定制简历\n- **优化简历**：按你的要求修改、润色简历内容\n- **面试辅导**：预测面试题、给出回答框架\n- **简历诊断**：分析简历与 JD 的匹配度\n\n请先点击「我的背景」填写你的经历，然后告诉我你想做什么。',
+  content: '你好！我是**一岗一历**，你的求职助手。\n\n我可以帮你：\n- **生成简历**：根据岗位信息和你的背景，生成定制简历\n- **优化简历**：按你的要求修改、润色简历内容\n- **面试辅导**：预测面试题，给出回答框架\n- **简历诊断**：分析简历与 JD 的匹配度\n\n请点击页面右上角「我的背景」填写你的经历，然后告诉我你想做什么。',
   timestamp: Date.now(),
 };
 
@@ -36,16 +41,11 @@ function extractResumeFromText(text: string): string | null {
   return startIdx !== -1 && endIdx > startIdx ? text.slice(startIdx + 18, endIdx).trim() : null;
 }
 
-export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, onInterviewNoteAdded, currentProvider, onOpenSettings }: ChatPanelProps) {
+export function ChatPanel({ jobId, jobTitle, resumeId, onResumeCreated, onResumeUpdated, onInterviewNoteAdded, onOpenSettings, bg }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
-  const [background, setBackground] = useState('');
-  const [showBgModal, setShowBgModal] = useState(false);
-  const [uploadingBg, setUploadingBg] = useState(false);
-  const [savingBackground, setSavingBackground] = useState(false);
-  const [backgroundSaved, setBackgroundSaved] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; text: string } | null>(null);
@@ -57,7 +57,6 @@ export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, o
   useEffect(() => { currentResumeIdRef.current = resumeId; }, [resumeId]);
   useEffect(() => { if (autoScroll) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, streamingContent, autoScroll]);
 
-  // 右键菜单：点击外部关闭
   useEffect(() => {
     if (!contextMenu) return;
     const close = (e: MouseEvent) => {
@@ -77,14 +76,6 @@ export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, o
     }
   }, [jobId]);
 
-  // 加载用户背景信息
-  useEffect(() => {
-    fetchUserBackground()
-      .then(bg => setBackground(bg.content))
-      .catch(() => setBackground(''));
-  }, []);
-
-  // 切换 job/resume 时加载历史对话
   useEffect(() => {
     if (!jobId) {
       setMessages([WELCOME_MESSAGE]);
@@ -141,7 +132,11 @@ export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, o
           if (currentResumeIdRef.current) {
             onResumeUpdated(await updateResume(currentResumeIdRef.current, { content: resumeContent }));
           } else {
-            const newResume = await createResume({ job_id: jobId, content: resumeContent, title: '定制简历' });
+            const activeProfile = bg.activeProfileId != null
+              ? bg.profiles.find((p) => p.id === bg.activeProfileId)
+              : bg.profiles[0];
+            const defaultTitle = composeResumeTitleFromParts(jobTitle, activeProfile?.name);
+            const newResume = await createResume({ job_id: jobId, content: resumeContent, title: defaultTitle });
             currentResumeIdRef.current = newResume.id;
             resumeIdToSave = newResume.id;
             onResumeCreated(newResume);
@@ -156,9 +151,9 @@ export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, o
         setStreamingContent('');
         setMessages(prev => [...prev, { role: 'assistant', content: `错误：${err.message}` }]);
       },
-      background || undefined,
+      bg.backgroundForChat || undefined,
     );
-  }, [input, streaming, jobId, messages, background, onResumeCreated, onResumeUpdated]);
+  }, [input, streaming, jobId, jobTitle, messages, bg.backgroundForChat, bg.profiles, bg.activeProfileId, onResumeCreated, onResumeUpdated]);
 
   const handleQuickPrompt = (text: string) => {
     setInput(text);
@@ -175,7 +170,6 @@ export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, o
     <div className="panel-header">
       <span className="panel-title flex-1 min-w-0"><Bot size={16} className="text-purple-500" /><span className="truncate">求职 Agent</span></span>
       <div className="flex items-center gap-1">
-        <button className="text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-100" onClick={() => setShowBgModal(true)}>我的背景</button>
         <button className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100" onClick={handleClearChat} title="清空对话"><RefreshCw size={14} /></button>
         <button className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100" onClick={onOpenSettings}><Settings size={14} /></button>
       </div>
@@ -207,7 +201,6 @@ export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, o
       <div ref={messagesEndRef} />
     </div>
 
-    {/* 右键菜单：选中文本 → 添加到面试指导 */}
     {contextMenu && (
       <div
         ref={contextMenuRef}
@@ -264,53 +257,5 @@ export function ChatPanel({ jobId, resumeId, onResumeCreated, onResumeUpdated, o
         <button className="w-10 h-10 bg-primary-600 text-white rounded-xl flex items-center justify-center" onClick={handleSend} disabled={streaming || !input.trim() || !jobId}>{streaming ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
       </div>
     </div>
-
-    {showBgModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-[760px] max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b"><h2 className="text-lg font-semibold">我的背景（全面信息汇总）</h2><button className="p-1 hover:bg-gray-100 rounded" onClick={() => setShowBgModal(false)} title="关闭"><X size={18} /></button></div>
-        <div className="px-6 py-4 space-y-3 overflow-y-auto flex-1">
-          <p className="text-xs text-gray-500">包含：基本信息、学历、实习、项目、个人作品集等。支持文本直接编辑，或上传PDF/Word/图片自动OCR。</p>
-          <label className="inline-flex items-center gap-2 text-xs px-3 py-2 rounded border cursor-pointer hover:bg-gray-50"><Upload size={13} />上传背景文件
-            <input type="file" className="hidden" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" onChange={async e => {
-              const file = e.target.files?.[0]; if (!file) return; setUploadingBg(true);
-              try { const res = await extractTextFromFile(file); setBackground(prev => `${prev}\n\n${res.text}`.trim()); } catch { alert('背景文件解析失败，请检查OCR配置。'); } finally { setUploadingBg(false); }
-            }} />
-          </label>
-          {uploadingBg && <p className="text-xs text-gray-500"><Loader2 size={12} className="inline animate-spin mr-1" />解析中...</p>}
-          <textarea className="w-full min-h-[380px] border rounded-lg px-3 py-2 text-sm" value={background} onChange={e => { setBackground(e.target.value); setBackgroundSaved(false); }} placeholder="在此维护完整个人背景信息..." />
-        </div>
-        <div className="px-6 py-4 border-t flex items-center justify-between gap-3 bg-gray-50 rounded-b-xl">
-          <span className="text-sm text-gray-500">{backgroundSaved ? <span className="inline-flex items-center gap-1 text-green-600"><Check size={14} /> 已保存到数据库</span> : '点击保存后，内容将写入数据库，对话时会自动带入。'}</span>
-          <div className="flex items-center gap-2">
-            <button
-              className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100"
-              onClick={() => setShowBgModal(false)}
-            >
-              关闭
-            </button>
-            <button
-              className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 inline-flex items-center gap-2"
-              disabled={savingBackground}
-              onClick={async () => {
-                setSavingBackground(true);
-                setBackgroundSaved(false);
-                try {
-                  await updateUserBackground(background);
-                  setBackgroundSaved(true);
-                  setTimeout(() => setBackgroundSaved(false), 3000);
-                } catch {
-                  alert('保存失败，请重试');
-                } finally {
-                  setSavingBackground(false);
-                }
-              }}
-            >
-              {savingBackground ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              {savingBackground ? '保存中...' : '保存'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>}
   </div>;
 }
