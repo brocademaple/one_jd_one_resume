@@ -83,6 +83,39 @@ class ChatRequest(BaseModel):
     user_background: Optional[str] = None
 
 
+class InterviewSimRequest(BaseModel):
+    """与 ChatRequest 相同字段，用于独立面试模拟流式接口。"""
+    resume_id: int
+    job_id: int
+    messages: List[MessageItem]
+    user_background: Optional[str] = None
+    # 本场抽样题单 Markdown，每轮请求一并传入以无状态推进
+    questionnaire_markdown: Optional[str] = None
+
+
+class QuestionnaireItemResponse(BaseModel):
+    id: str
+    category: str
+    text: str
+
+
+class QuestionnaireResponse(BaseModel):
+    categories_used: List[str]
+    items: List[QuestionnaireItemResponse]
+    questionnaire_markdown: str
+
+
+class InterviewReportRequest(BaseModel):
+    job_id: int
+    resume_id: int
+    messages: List[MessageItem]
+    user_background: Optional[str] = None
+
+
+class InterviewReportResponse(BaseModel):
+    report: str
+
+
 class ConversationResponse(BaseModel):
     id: int
     resume_id: int

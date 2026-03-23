@@ -280,6 +280,14 @@ async def test_connection(
         return False, f"连接失败: {err_msg[:100]}"
 
 
+async def complete_response(system: str, messages: list) -> str:
+    """非流式：聚合整段回复（用于面试复盘报告等）。"""
+    parts: list[str] = []
+    async for text in stream_response(system, messages):
+        parts.append(text)
+    return "".join(parts)
+
+
 async def stream_response(
     system: str,
     messages: list,

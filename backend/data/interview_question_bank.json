@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "questions": [
+    {"id": "intro-1", "category": "自我介绍", "text": "请用两三分钟做个自我介绍，重点说说和本岗位相关的经历。", "tags": []},
+    {"id": "intro-2", "category": "自我介绍", "text": "你最近一段工作里，最有成就感的一件事是什么？为什么？", "tags": []},
+    {"id": "intro-3", "category": "自我介绍", "text": "你为什么考虑从现在的方向转到这个岗位？", "tags": []},
+    {"id": "intro-4", "category": "自我介绍", "text": "用三个词形容你的工作风格，并各举一个小例子。", "tags": []},
+    {"id": "intro-5", "category": "自我介绍", "text": "你认为自己和 JD 里哪几条要求最匹配？哪一条相对薄弱？", "tags": []},
+
+    {"id": "behavior-1", "category": "行为面试", "text": "讲一次你和同事或业务方意见不一致的经历，最后怎么推进的？", "tags": ["management"]},
+    {"id": "behavior-2", "category": "行为面试", "text": "有没有在 deadline 很紧的情况下交付过项目？你具体做了什么取舍？", "tags": []},
+    {"id": "behavior-3", "category": "行为面试", "text": "描述一次你主动发现问题并推动解决的经历。", "tags": []},
+    {"id": "behavior-4", "category": "行为面试", "text": "遇到过线上故障或重大事故吗？你在其中的角色和复盘收获？", "tags": ["backend", "frontend", "运维"]},
+    {"id": "behavior-5", "category": "行为面试", "text": "说一个你带新人或分享知识的例子。", "tags": ["management"]},
+    {"id": "behavior-6", "category": "行为面试", "text": "你收到过最严厉的反馈是什么？后来怎么改的？", "tags": []},
+    {"id": "behavior-7", "category": "行为面试", "text": "多任务并行时你怎么排优先级？举个真实场景。", "tags": []},
+
+    {"id": "tech-1", "category": "技术深挖", "text": "你简历里提到的某项目中，技术选型是怎么定的？有没有备选方案？", "tags": ["frontend", "backend"]},
+    {"id": "tech-2", "category": "技术深挖", "text": "如何保证代码质量或接口稳定性？用过哪些具体手段？", "tags": ["frontend", "backend"]},
+    {"id": "tech-3", "category": "技术深挖", "text": "谈谈你对性能优化的理解，结合你做过的案例。", "tags": ["frontend", "backend"]},
+    {"id": "tech-4", "category": "技术深挖", "text": "数据一致性或分布式场景里，你遇到过什么坑？", "tags": ["backend"]},
+    {"id": "tech-5", "category": "技术深挖", "text": "前端状态管理或组件设计，你一般遵循什么原则？", "tags": ["frontend"]},
+    {"id": "tech-6", "category": "技术深挖", "text": "你如何看自动化测试？在团队里落地到什么程度？", "tags": ["frontend", "backend"]},
+
+    {"id": "scenario-1", "category": "情景题", "text": "如果需求在开发中途大幅变更，你会怎么和产品、测试沟通？", "tags": []},
+    {"id": "scenario-2", "category": "情景题", "text": "假设线上指标突然下跌，你会从哪些维度排查？", "tags": ["frontend", "backend"]},
+    {"id": "scenario-3", "category": "情景题", "text": "你发现同事提交的代码有明显风险，但对方比较忙，你会怎么做？", "tags": []},
+    {"id": "scenario-4", "category": "情景题", "text": "如果资源有限，只能实现需求的一部分，你会怎么和产品对齐范围？", "tags": ["management"]},
+    {"id": "scenario-5", "category": "情景题", "text": "客户或业务方催得很紧，但质量风险也大，你怎么权衡？", "tags": []},
+
+    {"id": "reverse-1", "category": "反向提问", "text": "（本题为面试官视角）若候选人暂无提问，可简要说明团队结构后问：你对我们团队还想了解什么？", "tags": []},
+    {"id": "reverse-2", "category": "反向提问", "text": "你对我们这个岗位后续半年的工作重点有什么想确认的吗？", "tags": []},
+
+    {"id": "general-1", "category": "综合", "text": "你认为做好这份工作，最关键的三项能力是什么？", "tags": []},
+    {"id": "general-2", "category": "综合", "text": "未来两三年你的职业规划是怎样的？和本岗位如何衔接？", "tags": []},
+    {"id": "general-3", "category": "综合", "text": "你最近在学什么新技术或方法？为什么选它？", "tags": ["frontend", "backend"]},
+    {"id": "general-4", "category": "综合", "text": "你如何保持对行业或业务领域的敏感度？", "tags": []}
+  ]
+}

@@ -7,6 +7,7 @@
 - **JD 管理** — 新建、编辑、删除岗位描述，支持状态与链接
 - **简历定制** — AI Agent 根据 JD 和个人经历生成定制简历，多岗位多版本
 - **面试指导** — 按岗位维护一份 Markdown 文档，支持改名/删除；选中对话内容右键「添加到面试指导」；与定制简历平级展示
+- **模拟面试** — 面试指导栏麦克风入口：独立全屏界面，基于 JD + 当前岗位简历（及人物背景）由 Agent 扮演面试官；开场前从 **预置分类题库** 抽样本场题单（`GET /api/interview-sim/questionnaire`），对话携带题单 Markdown 按序推进；回复含简短「现场反应」与口语提问；回答支持**打字**与**浏览器语音听写**（Web Speech API，推荐 Chrome / Edge，需麦克风权限）；结束后生成 Markdown 复盘报告（可复制）
 - **多人背景档案** — 「我的背景」可维护多份人物档案（显示名 + 正文），下拉切换；当前选中项保存在浏览器 localStorage，对话时带入对应正文
 - **简历 PDF 智能解析** — 上传简历 PDF 时通过通义千问将内容整理为「候选人背景」Markdown（需配置通义 API Key）；扫描类 PDF 使用多模态模型读图
 - **对话式交互** — 自然语言对话优化简历，快捷提示（生成简历、面试辅导、优化润色等）
@@ -61,6 +62,7 @@
 │  /api/jobs ──► JobsRouter      ──► SQLAlchemy ORM              │
 │  /api/resumes ► ResumesRouter  ──► SQLAlchemy ORM              │
 │  /api/chat ──► ChatRouter      ──► providers.py                │
+│  /api/interview-sim ► 题单抽样 + 流式 + 复盘报告                  │
 │  /api/export ► ExportRouter    ──► ReportLab PDF / python-docx  │
 │  /api/settings► SettingsRouter ──► ai_settings.json            │
 │                                                                 │

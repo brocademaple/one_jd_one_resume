@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from database import engine, Base
-from routers import jobs, resumes, chat, export, settings as settings_router, uploads, background
+from routers import jobs, resumes, chat, export, settings as settings_router, uploads, background, interview_sim
 
 Base.metadata.create_all(bind=engine)
 
@@ -49,6 +49,7 @@ app.add_middleware(
 app.include_router(jobs.router)
 app.include_router(resumes.router)
 app.include_router(chat.router)
+app.include_router(interview_sim.router)
 app.include_router(export.router)
 app.include_router(settings_router.router)
 app.include_router(uploads.router)

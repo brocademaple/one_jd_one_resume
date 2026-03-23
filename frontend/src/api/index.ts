@@ -125,6 +125,125 @@ export const streamChat = async (
   }
 };
 
+export interface QuestionnaireItem {
+  id: string;
+  category: string;
+  text: string;
+}
+
+export interface QuestionnaireApiResponse {
+  categories_used: string[];
+  items: QuestionnaireItem[];
+  questionnaire_markdown: string;
+}
+
+/** 按岗位 JD 从预置题库抽样本场题单（不消耗 LLM） */
+export const fetchInterviewQuestionnaire = async (params: {
+  jobId: number;
+  total?: number;
+  seed?: number;
+}): Promise<QuestionnaireApiResponse> => {
+  const sp = new URLSearchParams();
+  sp.set('job_id', String(params.jobId));
+  if (params.total != null) sp.set('total', String(params.total));
+  if (params.seed != null) sp.set('seed', String(params.seed));
+  const res = await fetch(`${BASE_URL}/interview-sim/questionnaire?${sp.toString()}`);
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(t || 'Failed to fetch questionnaire');
+  }
+  return res.json();
+};
+
+/** 面试模拟：流式，输出格式含 <<<REACTION>>> / <<<SPEECH>>> */
+export const streamInterviewSim = async (
+  jobId: number,
+  resumeId: number,
+  messages: Message[],
+  onChunk: (text: string) => void,
+  onDone: () => void,
+  onError: (err: Error) => void,
+  userBackground?: string,
+  questionnaireMarkdown?: string | null,
+): Promise<void> => {
+  try {
+    const body: Record<string, unknown> = {
+      job_id: jobId,
+      resume_id: resumeId,
+      messages,
+      user_background: userBackground,
+    };
+    if (questionnaireMarkdown && questionnaireMarkdown.trim()) {
+      body.questionnaire_markdown = questionnaireMarkdown.trim();
+    }
+    const res = await fetch(`${BASE_URL}/interview-sim/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(errText || 'Interview sim request failed');
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'text') {
+              onChunk(data.content);
+            } else if (data.type === 'done') {
+              onDone();
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }
+  } catch (err) {
+    onError(err instanceof Error ? err : new Error(String(err)));
+  }
+};
+
+export const fetchInterviewReport = async (params: {
+  jobId: number;
+  resumeId: number;
+  messages: Message[];
+  userBackground?: string;
+}): Promise<{ report: string }> => {
+  const res = await fetch(`${BASE_URL}/interview-sim/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      job_id: params.jobId,
+      resume_id: params.resumeId,
+      messages: params.messages,
+      user_background: params.userBackground,
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(t || 'Report request failed');
+  }
+  return res.json();
+};
+
 // Export
 export interface ExportOptions {
   fontSize: number;

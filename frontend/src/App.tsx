@@ -13,6 +13,7 @@ import {
 } from './components/ResizablePanels';
 import { ResizableDivider } from './components/ResizableDivider';
 import { SettingsModal } from './components/SettingsModal';
+import { InterviewSimulationModal } from './components/InterviewSimulationModal';
 import { ToastContainer } from './components/Toast';
 import { useAppStore } from './store/useAppStore';
 import { fetchJobs, fetchResumes, createResume, fetchCurrentProvider } from './api';
@@ -24,6 +25,7 @@ function App() {
   const mainRef = useRef<HTMLDivElement>(null);
   const [showBgModal, setShowBgModal] = useState(false);
   const [showBgImportModal, setShowBgImportModal] = useState(false);
+  const [showInterviewSim, setShowInterviewSim] = useState(false);
   const bg = useBackgroundProfiles({ modalOpen: showBgModal });
   const panelsRef = useRef<ResizablePanelsHandle>(null);
   const [panelCollapsed, setPanelCollapsed] = useState<PanelCollapseState>({
@@ -233,6 +235,12 @@ function App() {
               onJobUpdated={handleJobUpdated}
               expandInterviewGuide={expandInterviewGuide}
               interviewNotesRefreshKey={interviewNotesRefreshKey}
+              interviewSimEnabled={
+                !!selectedJob &&
+                !!selectedResume &&
+                selectedResume.job_id === selectedJob.id
+              }
+              onOpenInterviewSim={() => setShowInterviewSim(true)}
             />
             <ResumePanel resume={selectedResume} onResumeUpdated={handleResumeUpdated} />
             <ChatPanel
@@ -279,6 +287,18 @@ function App() {
         createProfileFromImport={bg.createProfileFromImport}
         committing={bg.savingBackground}
       />
+
+      {showInterviewSim && selectedJob && selectedResume && selectedResume.job_id === selectedJob.id && (
+        <InterviewSimulationModal
+          open={showInterviewSim}
+          onClose={() => setShowInterviewSim(false)}
+          jobId={selectedJob.id}
+          jobTitle={selectedJob.title}
+          resumeId={selectedResume.id}
+          resumeTitle={selectedResume.title ?? null}
+          userBackground={bg.background?.trim() || undefined}
+        />
+      )}
 
       {showSettings && (
         <SettingsModal

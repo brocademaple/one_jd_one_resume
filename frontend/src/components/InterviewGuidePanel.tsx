@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Edit3, Save, X, Trash2 } from 'lucide-react';
+import { BookOpen, Edit3, Save, X, Trash2, Mic } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getInterviewGuideContent, saveInterviewGuideContent, getInterviewGuideTitle } from '../utils/interviewNotes';
@@ -8,9 +8,16 @@ interface InterviewGuidePanelProps {
   jobId: number | null;
   /** 外部追加内容后递增，用于刷新 */
   refreshKey?: number;
+  interviewSimEnabled?: boolean;
+  onOpenInterviewSim?: () => void;
 }
 
-export function InterviewGuidePanel({ jobId, refreshKey = 0 }: InterviewGuidePanelProps) {
+export function InterviewGuidePanel({
+  jobId,
+  refreshKey = 0,
+  interviewSimEnabled = false,
+  onOpenInterviewSim,
+}: InterviewGuidePanelProps) {
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
   const [editing, setEditing] = useState(false);
@@ -75,6 +82,17 @@ export function InterviewGuidePanel({ jobId, refreshKey = 0 }: InterviewGuidePan
           <span className="truncate">{title || '面试指导'}</span>
         </div>
         <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+          {onOpenInterviewSim && (
+            <button
+              type="button"
+              disabled={!interviewSimEnabled}
+              className="p-1.5 rounded-lg text-amber-700 hover:bg-amber-100 disabled:opacity-40 disabled:pointer-events-none"
+              title={interviewSimEnabled ? '打开模拟面试' : '请先为该岗位选择或创建简历'}
+              onClick={onOpenInterviewSim}
+            >
+              <Mic size={14} />
+            </button>
+          )}
           {editing ? (
             <>
               <button

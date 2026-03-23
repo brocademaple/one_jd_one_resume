@@ -13,6 +13,9 @@ interface JDAndInterviewGuideColumnProps {
   onJobUpdated: (job: Job) => void;
   expandInterviewGuide?: boolean;
   interviewNotesRefreshKey?: number;
+  /** 当前岗位已有选中简历时可开启模拟面试 */
+  interviewSimEnabled?: boolean;
+  onOpenInterviewSim?: () => void;
 }
 
 export function JDAndInterviewGuideColumn({
@@ -20,6 +23,8 @@ export function JDAndInterviewGuideColumn({
   onJobUpdated,
   expandInterviewGuide = false,
   interviewNotesRefreshKey = 0,
+  interviewSimEnabled = false,
+  onOpenInterviewSim,
 }: JDAndInterviewGuideColumnProps) {
   const columnRef = useRef<HTMLDivElement>(null);
   const [jdHeightPct, setJdHeightPct] = useState(DEFAULT_JD_HEIGHT_PCT);
@@ -75,7 +80,12 @@ export function JDAndInterviewGuideColumn({
           minHeight: interviewGuideCollapsed ? 0 : 120,
         }}
       >
-        <InterviewGuidePanel jobId={job?.id ?? null} refreshKey={interviewNotesRefreshKey} />
+        <InterviewGuidePanel
+          jobId={job?.id ?? null}
+          refreshKey={interviewNotesRefreshKey}
+          interviewSimEnabled={interviewSimEnabled}
+          onOpenInterviewSim={onOpenInterviewSim}
+        />
       </div>
     </div>
   );
