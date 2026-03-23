@@ -26,6 +26,7 @@ function App() {
   const [showBgModal, setShowBgModal] = useState(false);
   const [showBgImportModal, setShowBgImportModal] = useState(false);
   const [showInterviewSim, setShowInterviewSim] = useState(false);
+  const [interviewPreferredCategories, setInterviewPreferredCategories] = useState<string[] | null>(null);
   const bg = useBackgroundProfiles({ modalOpen: showBgModal });
   const panelsRef = useRef<ResizablePanelsHandle>(null);
   const [panelCollapsed, setPanelCollapsed] = useState<PanelCollapseState>({
@@ -235,12 +236,18 @@ function App() {
               onJobUpdated={handleJobUpdated}
               expandInterviewGuide={expandInterviewGuide}
               interviewNotesRefreshKey={interviewNotesRefreshKey}
-              interviewSimEnabled={
+              canStartSimulation={
                 !!selectedJob &&
                 !!selectedResume &&
+                bg.activeProfileId != null &&
                 selectedResume.job_id === selectedJob.id
               }
-              onOpenInterviewSim={() => setShowInterviewSim(true)}
+              resumeId={selectedResume?.id ?? null}
+              backgroundProfileId={bg.activeProfileId}
+              onStartInterviewSim={(preferredCategories) => {
+                setInterviewPreferredCategories(preferredCategories);
+                setShowInterviewSim(true);
+              }}
             />
             <ResumePanel resume={selectedResume} onResumeUpdated={handleResumeUpdated} />
             <ChatPanel
@@ -291,12 +298,17 @@ function App() {
       {showInterviewSim && selectedJob && selectedResume && selectedResume.job_id === selectedJob.id && (
         <InterviewSimulationModal
           open={showInterviewSim}
-          onClose={() => setShowInterviewSim(false)}
+          onClose={() => {
+            setShowInterviewSim(false);
+            setInterviewPreferredCategories(null);
+          }}
           jobId={selectedJob.id}
           jobTitle={selectedJob.title}
           resumeId={selectedResume.id}
           resumeTitle={selectedResume.title ?? null}
           userBackground={bg.background?.trim() || undefined}
+          backgroundProfileId={bg.activeProfileId}
+          preferredCategories={interviewPreferredCategories}
         />
       )}
 

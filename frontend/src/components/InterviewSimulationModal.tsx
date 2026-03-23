@@ -26,6 +26,9 @@ interface InterviewSimulationModalProps {
   resumeId: number;
   resumeTitle: string | null;
   userBackground?: string;
+  backgroundProfileId?: number | null;
+  /** 子界面选择的题目类型倾向；null/undefined 表示不过滤（全库随机） */
+  preferredCategories?: string[] | null;
 }
 
 function toApiMessages(msgs: SimMsg[]): Message[] {
@@ -51,6 +54,8 @@ export function InterviewSimulationModal({
   resumeId,
   resumeTitle,
   userBackground,
+  backgroundProfileId = null,
+  preferredCategories = null,
 }: InterviewSimulationModalProps) {
   const [phase, setPhase] = useState<'interview' | 'report'>('interview');
   const [messages, setMessages] = useState<SimMsg[]>([]);
@@ -99,7 +104,7 @@ export function InterviewSimulationModal({
     setQuestionnaireLoading(false);
     setQuestionListOpen(true);
     questionnaireMdRef.current = '';
-  }, [open, jobId, resumeId]);
+  }, [open, jobId, resumeId, backgroundProfileId]);
 
   useEffect(() => {
     if (open) listEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -145,7 +150,14 @@ export function InterviewSimulationModal({
     setQuestionnaireLoading(true);
     try {
       const seed = Math.floor(Math.random() * 1_000_000_000);
-      const data = await fetchInterviewQuestionnaire({ jobId, total: 7, seed });
+      const data = await fetchInterviewQuestionnaire({
+        jobId,
+        resumeId,
+        backgroundProfileId,
+        total: 7,
+        seed,
+        categories: preferredCategories && preferredCategories.length > 0 ? preferredCategories : undefined,
+      });
       questionnaireMdRef.current = data.questionnaire_markdown;
       setQuestionnaireItems(data.items);
     } catch (e) {
@@ -297,14 +309,14 @@ export function InterviewSimulationModal({
             <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4 bg-gray-50">
               {!started ? (
                 <div className="text-center py-12 px-4">
-                  <p className="text-gray-600 text-sm mb-4">
-                    将基于当前岗位的 JD、选中简历与人物背景（若已填写）进行模拟。开始时会从<strong>预置分类题库</strong>中抽取本场题单，面试官按题单推进，减少重复出题成本。面试官会展示简短现场反应，结束后可生成复盘报告。
+                  <p className="text-gray-600 text-sm mb-3 text-left max-w-md mx-auto">
+                    基于 JD、简历与人物背景模拟面试。题单将从<strong>预置题库 + 本岗位专属题</strong>中抽取（类型倾向来自上一层题库配置）。
                     {speechSupported ? (
                       <span className="block mt-2 text-amber-800/90">
-                        开始后可<strong>打字</strong>或点击输入框旁<strong>麦克风</strong>用语音作答（推荐 Chrome / Edge）。
+                        作答可<strong>打字</strong>或<strong>麦克风</strong>（推荐 Chrome / Edge）。
                       </span>
                     ) : (
-                      <span className="block mt-2 text-gray-500">语音输入需浏览器支持（如 Chrome / Edge）；也可全程手动输入。</span>
+                      <span className="block mt-2 text-gray-500">语音需浏览器支持；也可全程手动输入。</span>
                     )}
                   </p>
                   <button

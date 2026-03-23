@@ -18,6 +18,11 @@ class Job(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     resumes = relationship("Resume", back_populates="job", cascade="all, delete-orphan")
+    interview_questions = relationship(
+        "JobInterviewQuestion",
+        back_populates="job",
+        cascade="all, delete-orphan",
+    )
 
 
 class Resume(Base):
@@ -45,6 +50,27 @@ class Conversation(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     resume = relationship("Resume", back_populates="conversations")
+
+
+class JobInterviewQuestion(Base):
+    """按岗位扩展的模拟面试题库（LLM 根据 JD 生成，与全局 JSON 题库合并抽样）。"""
+    __tablename__ = "job_interview_questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True)
+    # 不同候选人的区分管理：同一岗位下，按“简历+人物背景”分别维护不同题库
+    resume_id = Column(Integer, ForeignKey("resumes.id", ondelete="CASCADE"), nullable=True, index=True)
+    background_profile_id = Column(
+        Integer,
+        ForeignKey("user_backgrounds.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    category = Column(String(100), nullable=False)
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    job = relationship("Job", back_populates="interview_questions")
 
 
 class UserBackground(Base):

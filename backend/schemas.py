@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Dict, Optional, List
 from datetime import datetime
 
 
@@ -103,6 +103,72 @@ class QuestionnaireResponse(BaseModel):
     categories_used: List[str]
     items: List[QuestionnaireItemResponse]
     questionnaire_markdown: str
+
+
+class JobInterviewBankMetaResponse(BaseModel):
+    """当前岗位已保存的专属面试题数量。"""
+    count: int
+
+
+class GenerateInterviewBankRequest(BaseModel):
+    job_id: int
+    resume_id: int
+    background_profile_id: int
+    # True：生成前清空该岗位已有专属题；False：在原有基础上追加
+    replace: bool = False
+
+
+class GenerateInterviewBankResponse(BaseModel):
+    added: int
+    total_for_job: int
+
+
+class QuestionCategoriesResponse(BaseModel):
+    categories: List[str]
+
+
+class PresetBankStats(BaseModel):
+    total: int
+    by_category: Dict[str, int]
+
+
+class JobQuestionPreviewRow(BaseModel):
+    id: int
+    category: str
+    text: str
+
+
+class BankPreviewResponse(BaseModel):
+    """管理员/预览：预置题库统计 + 当前岗位专属题列表。"""
+    categories_allowed: List[str]
+    preset: PresetBankStats
+    job_questions: List[JobQuestionPreviewRow]
+
+
+class JobBankDeleteResponse(BaseModel):
+    deleted: int
+
+class JobQuestionUpdateRequest(BaseModel):
+    job_id: int
+    resume_id: int
+    background_profile_id: int
+    question_id: int
+    text: str
+
+
+class JobQuestionUpdateResponse(BaseModel):
+    updated: int
+
+
+class JobQuestionDeleteRequest(BaseModel):
+    job_id: int
+    resume_id: int
+    background_profile_id: int
+    question_id: int
+
+
+class JobQuestionDeleteResponse(BaseModel):
+    deleted: int
 
 
 class InterviewReportRequest(BaseModel):

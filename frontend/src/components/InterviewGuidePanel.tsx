@@ -1,38 +1,69 @@
-import { useState, useEffect } from 'react';
-import { BookOpen, Edit3, Save, X, Trash2, Mic } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { BookOpen, Edit3, Save, X, Trash2, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getInterviewGuideContent, saveInterviewGuideContent, getInterviewGuideTitle } from '../utils/interviewNotes';
+import {
+  fetchJobInterviewBankMeta,
+} from '../api';
+import { handleApiError, showSuccess, showInfo } from '../utils/errorHandler';
+import { InterviewQuestionBankModal } from './InterviewQuestionBankModal';
 
 interface InterviewGuidePanelProps {
   jobId: number | null;
   /** 外部追加内容后递增，用于刷新 */
   refreshKey?: number;
-  interviewSimEnabled?: boolean;
-  onOpenInterviewSim?: () => void;
+  resumeId: number | null;
+  backgroundProfileId: number | null;
+  /** 当前岗位是否已选中对应简历（允许开始模拟） */
+  canStartSimulation?: boolean;
+  onStartInterviewSim?: (preferredCategories: string[] | null) => void;
 }
 
 export function InterviewGuidePanel({
   jobId,
   refreshKey = 0,
-  interviewSimEnabled = false,
-  onOpenInterviewSim,
+  resumeId,
+  backgroundProfileId,
+  canStartSimulation = false,
+  onStartInterviewSim,
 }: InterviewGuidePanelProps) {
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [saving, setSaving] = useState(false);
+  const [jobBankCount, setJobBankCount] = useState(0);
+  const [questionBankOpen, setQuestionBankOpen] = useState(false);
+
+  const loadJobBankMeta = async (jid: number) => {
+    if (resumeId == null || backgroundProfileId == null) {
+      setJobBankCount(0);
+      return;
+    }
+    try {
+      const { count } = await fetchJobInterviewBankMeta({
+        jobId: jid,
+        resumeId,
+        backgroundProfileId,
+      });
+      setJobBankCount(count);
+    } catch {
+      setJobBankCount(0);
+    }
+  };
 
   useEffect(() => {
     if (jobId == null) {
       setContent('');
       setTitle('');
+      setJobBankCount(0);
       return;
     }
     setContent(getInterviewGuideContent(jobId));
     setTitle(getInterviewGuideTitle(jobId));
-  }, [jobId, refreshKey]);
+    void loadJobBankMeta(jobId);
+  }, [jobId, refreshKey, resumeId, backgroundProfileId]);
 
   const startEdit = () => {
     setEditContent(content);
@@ -75,56 +106,95 @@ export function InterviewGuidePanel({
   }
 
   return (
-    <div className="flex flex-col h-full bg-amber-50/50 border-t border-amber-100 min-h-0">
-      <div className="panel-header flex-shrink-0">
-        <div className="panel-title flex-1 min-w-0">
-          <BookOpen size={16} className="text-amber-500 flex-shrink-0" />
-          <span className="truncate">{title || '面试指导'}</span>
+    <div className="relative flex flex-col h-full bg-amber-50/50 border-t border-amber-100 min-h-0">
+      {jobId != null && (
+        <InterviewQuestionBankModal
+          open={questionBankOpen}
+          onClose={() => {
+            setQuestionBankOpen(false);
+            void loadJobBankMeta(jobId);
+          }}
+          jobId={jobId}
+          jobTitle={title || '面试指导'}
+          canStartSimulation={canStartSimulation}
+            resumeId={resumeId}
+          backgroundProfileId={backgroundProfileId}
+          onStartSimulation={(preferredCategories) => {
+            onStartInterviewSim?.(preferredCategories);
+            setQuestionBankOpen(false);
+          }}
+        />
+      )}
+
+      <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200 bg-white flex flex-col items-start gap-2">
+        <div className="panel-title min-w-0 !flex !flex-col !items-start gap-0.5">
+          <div className="flex items-center gap-1.5 min-w-0 w-full">
+            <BookOpen size={16} className="text-amber-500 flex-shrink-0" />
+            <span className="truncate">{title || '面试指导'}</span>
+          </div>
+          <span className="text-[10px] text-amber-800/70 font-normal pl-5 truncate w-full" title="题库生成/预览/类型选择均在子界面完成">
+            专属题库 {jobBankCount} 题 · 点击「题库」管理并开始模拟
+          </span>
         </div>
-        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-          {onOpenInterviewSim && (
-            <button
-              type="button"
-              disabled={!interviewSimEnabled}
-              className="p-1.5 rounded-lg text-amber-700 hover:bg-amber-100 disabled:opacity-40 disabled:pointer-events-none"
-              title={interviewSimEnabled ? '打开模拟面试' : '请先为该岗位选择或创建简历'}
-              onClick={onOpenInterviewSim}
-            >
-              <Mic size={14} />
-            </button>
-          )}
+        <div className="flex flex-wrap gap-2 w-full">
+          <button
+            type="button"
+            className="px-3 py-1.5 rounded-lg text-sm text-amber-800 hover:bg-amber-100 disabled:opacity-50 flex items-center gap-2 min-w-[120px] justify-center"
+            title="打开题库子界面：生成/预览/类型选择/开始面试"
+            onClick={() => setQuestionBankOpen(true)}
+          >
+            <Sparkles size={14} className="opacity-70" />
+            题库
+          </button>
           {editing ? (
             <>
               <button
                 type="button"
-                className="p-1.5 rounded-lg bg-primary-600 text-white hover:bg-primary-700 text-xs px-3 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-lg bg-primary-600 text-white hover:bg-primary-700 text-sm disabled:opacity-50 flex items-center gap-2 min-w-[120px] justify-center"
                 onClick={handleSave}
                 disabled={saving}
               >
-                {saving ? '保存中' : <><Save size={13} className="inline mr-1" />保存</>}
+                {saving ? (
+                  '保存中'
+                ) : (
+                  <>
+                    <Save size={14} className="opacity-90" />
+                    保存
+                  </>
+                )}
               </button>
-              <button type="button" className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100" onClick={() => { setEditing(false); setEditContent(content); }}>
-                <X size={14} />
+              <button
+                type="button"
+                className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 flex items-center gap-2 min-w-[120px] justify-center"
+                onClick={() => {
+                  setEditing(false);
+                  setEditContent(content);
+                }}
+              >
+                <X size={14} className="opacity-70" />
+                取消
               </button>
             </>
           ) : (
             <>
               <button
                 type="button"
-                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-amber-600"
+                className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-amber-600 flex items-center gap-2 min-w-[120px] justify-center"
                 onClick={startEdit}
                 title="编辑面试指导"
               >
-                <Edit3 size={14} />
+                <Edit3 size={14} className="opacity-70" />
+                编辑
               </button>
               {content.trim() && (
                 <button
                   type="button"
-                  className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-red-500"
+                  className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-red-500 flex items-center gap-2 min-w-[120px] justify-center"
                   onClick={handleClear}
                   title="清空内容"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={14} className="opacity-70" />
+                  清空
                 </button>
               )}
             </>

@@ -33,6 +33,33 @@ try:
         if "name" not in bg_cols:
             conn.execute(text("ALTER TABLE user_backgrounds ADD COLUMN name VARCHAR(200) DEFAULT '默认'"))
             conn.execute(text("UPDATE user_backgrounds SET name = '默认' WHERE name IS NULL OR name = ''"))
+        # 岗位专属面试题库（按“简历+人物背景”分别维护）
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS job_interview_questions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    job_id INTEGER NOT NULL,
+                    resume_id INTEGER,
+                    background_profile_id INTEGER,
+                    category VARCHAR(100) NOT NULL,
+                    text TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+                )
+                """
+            )
+        )
+        result_q = conn.execute(text("PRAGMA table_info(job_interview_questions)"))
+        q_cols = [r[1] for r in result_q]
+        if "resume_id" not in q_cols:
+            conn.execute(text("ALTER TABLE job_interview_questions ADD COLUMN resume_id INTEGER"))
+        if "background_profile_id" not in q_cols:
+            conn.execute(text("ALTER TABLE job_interview_questions ADD COLUMN background_profile_id INTEGER"))
+
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_job_interview_questions_job_id ON job_interview_questions (job_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_job_interview_questions_resume_id ON job_interview_questions (resume_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_job_interview_questions_background_profile_id ON job_interview_questions (background_profile_id)"))
 except Exception:
     pass
 

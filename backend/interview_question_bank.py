@@ -14,6 +14,16 @@ from pydantic import BaseModel, Field
 
 _BANK_PATH = Path(__file__).resolve().parent / "data" / "interview_question_bank.json"
 
+# 与 JSON 题库、LLM 生成分类保持一致；API 与前端抽样筛选用
+QUESTION_CATEGORIES: List[str] = [
+    "自我介绍",
+    "行为面试",
+    "技术深挖",
+    "情景题",
+    "反向提问",
+    "综合",
+]
+
 
 class BankQuestion(BaseModel):
     id: str
@@ -78,14 +88,27 @@ def sample_questionnaire(
     total: int = 7,
     seed: Optional[int] = None,
     max_per_category: int = 2,
+    extra_questions: Optional[List[BankQuestion]] = None,
+    category_filter: Optional[List[str]] = None,
 ) -> Tuple[List[BankQuestion], List[str]]:
     """
     分层抽样：先尽量每类抽 1 题，再按类上限补足，最后从剩余池补满 total。
     带 tags 的题目若与 JD 小写文本匹配则权重略增。
+    extra_questions：岗位专属题库，与预置 JSON 合并；id 以 jobq- 开头时略提高权重。
+    category_filter：非空时只从指定类别中抽样；若过滤后为空则回退为全量池。
     """
-    all_q = load_question_bank()
+    all_q = list(load_question_bank())
+    if extra_questions:
+        all_q.extend(extra_questions)
     if not all_q:
         return [], []
+
+    if category_filter:
+        cf = {c.strip() for c in category_filter if c and str(c).strip()}
+        if cf:
+            filtered = [q for q in all_q if q.category in cf]
+            if filtered:
+                all_q = filtered
 
     rng = random.Random(seed)
     jd_lower = (jd_text or "").lower()
@@ -101,7 +124,13 @@ def sample_questionnaire(
     picked_ids: set[str] = set()
 
     def weight_pool(pool: List[BankQuestion]) -> List[Tuple[BankQuestion, float]]:
-        return [(q, 1.0 + 0.35 * _jd_keyword_hits(jd_lower, q.tags)) for q in pool]
+        out: List[Tuple[BankQuestion, float]] = []
+        for q in pool:
+            w = 1.0 + 0.35 * _jd_keyword_hits(jd_lower, q.tags)
+            if q.id.startswith("jobq-"):
+                w *= 1.4
+            out.append((q, w))
+        return out
 
     # 第一轮：每类至多 1 题，增加覆盖面
     for cat in categories:

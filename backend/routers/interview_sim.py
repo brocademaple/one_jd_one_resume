@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
-from typing import Optional
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from collections import Counter
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -12,7 +14,14 @@ import models
 import schemas
 from providers import stream_response, complete_response
 from routers.chat import _build_job_content
-from interview_question_bank import sample_questionnaire, questionnaire_to_markdown
+from interview_question_bank import (
+    BankQuestion,
+    QUESTION_CATEGORIES,
+    load_question_bank,
+    questionnaire_to_markdown,
+    sample_questionnaire,
+)
+from interview_bank_llm import generate_job_question_dicts
 
 router = APIRouter(prefix="/api/interview-sim", tags=["interview-sim"])
 
@@ -90,6 +99,29 @@ async def _stream_sim(
     yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 
+def _db_job_questions_as_bank(
+    db: Session,
+    job_id: int,
+    resume_id: Optional[int],
+    background_profile_id: Optional[int],
+) -> List[BankQuestion]:
+    q = db.query(models.JobInterviewQuestion).filter(models.JobInterviewQuestion.job_id == job_id)
+    if resume_id is not None:
+        q = q.filter(models.JobInterviewQuestion.resume_id == resume_id)
+    if background_profile_id is not None:
+        q = q.filter(models.JobInterviewQuestion.background_profile_id == background_profile_id)
+    rows = q.order_by(models.JobInterviewQuestion.id.asc()).all()
+    return [
+        BankQuestion(
+            id=f"jobq-{r.id}",
+            category=r.category,
+            text=r.text,
+            tags=[],
+        )
+        for r in rows
+    ]
+
+
 def _format_transcript(messages: list) -> str:
     lines = []
     for m in messages:
@@ -104,24 +136,40 @@ def _format_transcript(messages: list) -> str:
     return "\n---\n\n".join(lines)
 
 
+@router.get("/question-categories", response_model=schemas.QuestionCategoriesResponse)
+async def get_question_categories():
+    """可供模拟面试勾选的题目类型（与预置 JSON、生成题库分类一致）。"""
+    return schemas.QuestionCategoriesResponse(categories=list(QUESTION_CATEGORIES))
+
+
 @router.get("/questionnaire", response_model=schemas.QuestionnaireResponse)
 async def get_questionnaire(
     job_id: int,
+    resume_id: int,
+    background_profile_id: Optional[int] = None,
     total: int = 7,
     seed: Optional[int] = None,
+    categories: Optional[List[str]] = Query(
+        None,
+        description="可重复传参；仅从这些类别中随机抽样；不传则全库合并后抽样",
+    ),
     db: Session = Depends(get_db),
 ):
-    """从预置分类题库中为本场模拟抽样题单（不调用 LLM）。"""
+    """从预置分类题库 + 本岗位专属题库合并后，为本场模拟抽样题单（不调用 LLM）。"""
     db_job = db.query(models.Job).filter(models.Job.id == job_id).first()
     if not db_job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    extra = _db_job_questions_as_bank(db, job_id, resume_id, background_profile_id)
     t = max(3, min(12, total))
+    cat_filter = [c for c in (categories or []) if c and str(c).strip()]
     items, cats = sample_questionnaire(
         _build_job_content(db_job),
         total=t,
         seed=seed,
         max_per_category=2,
+        extra_questions=extra or None,
+        category_filter=cat_filter if cat_filter else None,
     )
     md = questionnaire_to_markdown(items)
     return schemas.QuestionnaireResponse(
@@ -132,6 +180,169 @@ async def get_questionnaire(
         ],
         questionnaire_markdown=md,
     )
+
+
+@router.get("/bank-preview", response_model=schemas.BankPreviewResponse)
+async def get_bank_preview(
+    job_id: int,
+    resume_id: int,
+    background_profile_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """预览：全局预置题数量/按类统计 + 本岗位专属题全文（便于管理员核对）。"""
+    db_job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    preset = load_question_bank()
+    by_cat = Counter(q.category for q in preset)
+    by_category = {c: by_cat.get(c, 0) for c in QUESTION_CATEGORIES}
+
+    q = db.query(models.JobInterviewQuestion).filter(models.JobInterviewQuestion.job_id == job_id)
+    q = q.filter(models.JobInterviewQuestion.resume_id == resume_id)
+    if background_profile_id is not None:
+        q = q.filter(models.JobInterviewQuestion.background_profile_id == background_profile_id)
+    rows = q.order_by(models.JobInterviewQuestion.id.asc()).all()
+    return schemas.BankPreviewResponse(
+        categories_allowed=list(QUESTION_CATEGORIES),
+        preset=schemas.PresetBankStats(total=len(preset), by_category=by_category),
+        job_questions=[
+            schemas.JobQuestionPreviewRow(id=r.id, category=r.category, text=r.text) for r in rows
+        ],
+    )
+
+
+@router.delete("/job-bank", response_model=schemas.JobBankDeleteResponse)
+async def clear_job_interview_bank(
+    job_id: int,
+    resume_id: int,
+    background_profile_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    db_job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    q = db.query(models.JobInterviewQuestion).filter(models.JobInterviewQuestion.job_id == job_id)
+    q = q.filter(models.JobInterviewQuestion.resume_id == resume_id)
+    if background_profile_id is not None:
+        q = q.filter(models.JobInterviewQuestion.background_profile_id == background_profile_id)
+    n = q.delete()
+    db.commit()
+    return schemas.JobBankDeleteResponse(deleted=n)
+
+
+@router.get("/job-bank", response_model=schemas.JobInterviewBankMetaResponse)
+async def get_job_interview_bank_meta(
+    job_id: int,
+    resume_id: int,
+    background_profile_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    db_job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    n = (
+        db.query(models.JobInterviewQuestion)
+        .filter(models.JobInterviewQuestion.job_id == job_id)
+        .filter(models.JobInterviewQuestion.resume_id == resume_id)
+        .count()
+    )
+    return schemas.JobInterviewBankMetaResponse(count=n)
+
+
+@router.post("/generate-bank", response_model=schemas.GenerateInterviewBankResponse)
+async def generate_job_interview_bank(
+    request: schemas.GenerateInterviewBankRequest,
+    db: Session = Depends(get_db),
+):
+    """根据 JD + 简历 + 可选背景 调用 LLM 生成专属面试题并入库；之后「开始面试」抽样时会与全局题库合并。"""
+    db_job = db.query(models.Job).filter(models.Job.id == request.job_id).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if request.replace:
+        db.query(models.JobInterviewQuestion).filter(models.JobInterviewQuestion.job_id == request.job_id).filter(
+            models.JobInterviewQuestion.resume_id == request.resume_id
+        ).filter(
+            models.JobInterviewQuestion.background_profile_id == request.background_profile_id
+        ).delete()
+        db.commit()
+
+    try:
+        db_resume = db.query(models.Resume).filter(models.Resume.id == request.resume_id).first()
+        if not db_resume:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        db_bg = None
+        if request.background_profile_id is not None:
+            db_bg = db.query(models.UserBackground).filter(models.UserBackground.id == request.background_profile_id).first()
+        dicts = await generate_job_question_dicts(
+            _build_job_content(db_job),
+            db_resume.content or "",
+            db_bg.content if db_bg else None,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"LLM 生成失败: {str(e)[:200]}")
+
+    if not dicts:
+        raise HTTPException(status_code=502, detail="未生成有效题目，请检查模型配置后重试")
+
+    for d in dicts:
+        db.add(
+            models.JobInterviewQuestion(
+                job_id=request.job_id,
+                resume_id=request.resume_id,
+                background_profile_id=request.background_profile_id,
+                category=d["category"],
+                text=d["text"],
+            )
+        )
+    db.commit()
+
+    total = (
+        db.query(models.JobInterviewQuestion)
+        .filter(models.JobInterviewQuestion.job_id == request.job_id)
+        .filter(models.JobInterviewQuestion.resume_id == request.resume_id)
+        .filter(models.JobInterviewQuestion.background_profile_id == request.background_profile_id)
+        .count()
+    )
+    return schemas.GenerateInterviewBankResponse(added=len(dicts), total_for_job=total)
+
+
+@router.put("/job-question", response_model=schemas.JobQuestionUpdateResponse)
+async def update_job_question(
+    request: schemas.JobQuestionUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    q = (
+        db.query(models.JobInterviewQuestion)
+        .filter(models.JobInterviewQuestion.id == request.question_id)
+        .filter(models.JobInterviewQuestion.job_id == request.job_id)
+        .filter(models.JobInterviewQuestion.resume_id == request.resume_id)
+        .filter(models.JobInterviewQuestion.background_profile_id == request.background_profile_id)
+        .first()
+    )
+    if not q:
+        raise HTTPException(status_code=404, detail="Question not found")
+    q.text = request.text
+    db.commit()
+    return schemas.JobQuestionUpdateResponse(updated=1)
+
+
+@router.delete("/job-question", response_model=schemas.JobQuestionDeleteResponse)
+async def delete_job_question(
+    request: schemas.JobQuestionDeleteRequest,
+    db: Session = Depends(get_db),
+):
+    n = (
+        db.query(models.JobInterviewQuestion)
+        .filter(models.JobInterviewQuestion.id == request.question_id)
+        .filter(models.JobInterviewQuestion.job_id == request.job_id)
+        .filter(models.JobInterviewQuestion.resume_id == request.resume_id)
+        .filter(models.JobInterviewQuestion.background_profile_id == request.background_profile_id)
+        .delete()
+    )
+    db.commit()
+    return schemas.JobQuestionDeleteResponse(deleted=n)
 
 
 @router.post("/stream")

@@ -137,20 +137,179 @@ export interface QuestionnaireApiResponse {
   questionnaire_markdown: string;
 }
 
+export const fetchQuestionCategories = async (): Promise<{ categories: string[] }> => {
+  const res = await fetch(`${BASE_URL}/interview-sim/question-categories`);
+  if (!res.ok) throw new Error('Failed to fetch question categories');
+  return res.json();
+};
+
+export interface BankPreviewApiResponse {
+  categories_allowed: string[];
+  preset: { total: number; by_category: Record<string, number> };
+  job_questions: { id: number; category: string; text: string }[];
+}
+
+export const fetchBankPreview = async (params: {
+  jobId: number;
+  resumeId: number;
+  backgroundProfileId?: number | null;
+}): Promise<BankPreviewApiResponse> => {
+  const sp = new URLSearchParams();
+  sp.set('job_id', String(params.jobId));
+  sp.set('resume_id', String(params.resumeId));
+  if (params.backgroundProfileId != null) sp.set('background_profile_id', String(params.backgroundProfileId));
+  const res = await fetch(`${BASE_URL}/interview-sim/bank-preview?${sp.toString()}`);
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(t || 'Failed to fetch bank preview');
+  }
+  return res.json();
+};
+
 /** 按岗位 JD 从预置题库抽样本场题单（不消耗 LLM） */
 export const fetchInterviewQuestionnaire = async (params: {
   jobId: number;
+  resumeId: number;
+  backgroundProfileId?: number | null;
   total?: number;
   seed?: number;
+  /** 仅从这些类别中抽样；不传或空数组表示不限制 */
+  categories?: string[];
 }): Promise<QuestionnaireApiResponse> => {
   const sp = new URLSearchParams();
   sp.set('job_id', String(params.jobId));
+  sp.set('resume_id', String(params.resumeId));
+  if (params.backgroundProfileId != null) sp.set('background_profile_id', String(params.backgroundProfileId));
   if (params.total != null) sp.set('total', String(params.total));
   if (params.seed != null) sp.set('seed', String(params.seed));
+  if (params.categories?.length) {
+    for (const c of params.categories) {
+      if (c.trim()) sp.append('categories', c.trim());
+    }
+  }
   const res = await fetch(`${BASE_URL}/interview-sim/questionnaire?${sp.toString()}`);
   if (!res.ok) {
     const t = await res.text().catch(() => '');
     throw new Error(t || 'Failed to fetch questionnaire');
+  }
+  return res.json();
+};
+
+export const fetchJobInterviewBankMeta = async (params: {
+  jobId: number;
+  resumeId: number;
+  backgroundProfileId?: number | null;
+}): Promise<{ count: number }> => {
+  const sp = new URLSearchParams();
+  sp.set('job_id', String(params.jobId));
+  sp.set('resume_id', String(params.resumeId));
+  if (params.backgroundProfileId != null) sp.set('background_profile_id', String(params.backgroundProfileId));
+  const res = await fetch(`${BASE_URL}/interview-sim/job-bank?${sp.toString()}`);
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(t || 'Failed to fetch job bank meta');
+  }
+  return res.json();
+};
+
+/** 根据 JD 调用 LLM 生成岗位专属面试题；replace=true 时先清空该岗位旧题 */
+export const generateInterviewBank = async (
+  params: {
+    jobId: number;
+    replace: boolean;
+    resumeId: number;
+    backgroundProfileId?: number | null;
+  },
+  signal?: AbortSignal,
+): Promise<{ added: number; total_for_job: number }> => {
+  const { jobId, replace, resumeId, backgroundProfileId } = params;
+  const res = await fetch(`${BASE_URL}/interview-sim/generate-bank`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      job_id: jobId,
+      resume_id: resumeId,
+      background_profile_id: backgroundProfileId ?? null,
+      replace,
+    }),
+    signal,
+  });
+  if (!res.ok) {
+    let msg = '生成题库失败';
+    try {
+      const j = await res.json();
+      if (j?.detail) msg = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail);
+    } catch {
+      const t = await res.text().catch(() => '');
+      if (t) msg = t;
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+};
+
+/** 清空本岗位专属题库（预置 JSON 不受影响） */
+export const clearJobInterviewBank = async (params: {
+  jobId: number;
+  resumeId: number;
+  backgroundProfileId?: number | null;
+}): Promise<{ deleted: number }> => {
+  const sp = new URLSearchParams();
+  sp.set('job_id', String(params.jobId));
+  sp.set('resume_id', String(params.resumeId));
+  if (params.backgroundProfileId != null) sp.set('background_profile_id', String(params.backgroundProfileId));
+  const res = await fetch(`${BASE_URL}/interview-sim/job-bank?${sp.toString()}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(t || '清空失败');
+  }
+  return res.json();
+};
+
+export const updateJobInterviewQuestion = async (params: {
+  jobId: number;
+  resumeId: number;
+  backgroundProfileId: number;
+  questionId: number;
+  text: string;
+}): Promise<{ updated: number }> => {
+  const res = await fetch(`${BASE_URL}/interview-sim/job-question`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      job_id: params.jobId,
+      resume_id: params.resumeId,
+      background_profile_id: params.backgroundProfileId,
+      question_id: params.questionId,
+      text: params.text,
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(t || '题目更新失败');
+  }
+  return res.json();
+};
+
+export const deleteJobInterviewQuestion = async (params: {
+  jobId: number;
+  resumeId: number;
+  backgroundProfileId: number;
+  questionId: number;
+}): Promise<{ deleted: number }> => {
+  const res = await fetch(`${BASE_URL}/interview-sim/job-question`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      job_id: params.jobId,
+      resume_id: params.resumeId,
+      background_profile_id: params.backgroundProfileId,
+      question_id: params.questionId,
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(t || '题目删除失败');
   }
   return res.json();
 };
