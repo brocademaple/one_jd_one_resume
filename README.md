@@ -1,6 +1,33 @@
-# 一岗一历 · OneJD OneResume
+<div align="center">
 
-一个支持多模型的智能求职 Agent：根据岗位 JD 生成定制简历，收藏面试指导，一岗一历、有条不紊。
+# 💼 一岗一历 — OneJD OneResume
+
+---
+
+### 📋 一套「岗位驱动」的智能求职工作台
+
+<img src="./docs/assets/real-screenshot.png" alt="一岗一历 主界面截图" width="92%" />
+
+<br/>
+
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-展示页-E11D48?style=for-the-badge&logo=githubpages&logoColor=white)](https://brocademaple.github.io/one_jd_one_resume/)
+[![Repo](https://img.shields.io/badge/REPO-one__jd__one__resume-475569?style=for-the-badge&logo=github&logoColor=white)](https://github.com/brocademaple/one_jd_one_resume)
+[![Stack](https://img.shields.io/badge/STACK-FastAPI%20%7C%20React-0ea5e9?style=for-the-badge)](https://github.com/brocademaple/one_jd_one_resume)
+
+<br/>
+
+[![AI](https://img.shields.io/badge/AI-多模型接入-8b5cf6?style=for-the-badge)](https://github.com/brocademaple/one_jd_one_resume#支持的-ai-提供商)
+[![Web](https://img.shields.io/badge/Web-Vite%20%2B%20TypeScript-38bdf8?style=for-the-badge)](https://github.com/brocademaple/one_jd_one_resume)
+
+<br/>
+
+> **一岗一历**是一款以「**一岗一档**」为核心的智能求职 Agent。它不只做简历润色，而是把**岗位 JD、定制简历、面试指导、专属题库、模拟面试与复盘**串成一条可复用工作流，让每一次投递与面试都**有据可依、可持续迭代**。
+
+🌐 **项目展示页 (GitHub Pages)：** [https://brocademaple.github.io/one_jd_one_resume/](https://brocademaple.github.io/one_jd_one_resume/)
+
+</div>
+
+---
 
 ## 功能特性
 
@@ -261,15 +288,8 @@ export QIANFAN_API_KEY=...            # 百度文心
 
 ---
 
-## GitHub Pages 展示页
+## GitHub Pages（部署说明）
 
-仓库内已提供产品宣传页：`docs/index.html`（样式：`docs/styles.css`）。
+宣传页源码位于 `docs/index.html`（样式 `docs/styles.css`）。若尚未启用：**Settings → Pages → Deploy from a branch → `main` / `/docs`**。
 
-启用方式：
-
-1. 进入 GitHub 仓库 Settings → Pages  
-2. Source 选择 **Deploy from a branch**  
-3. Branch 选择 `main`，Folder 选择 `/docs`  
-4. 保存后等待发布，访问生成的 Pages 链接
-
-> 当前 `docs/assets/` 下已包含真实运行截图 `real-screenshot.png`、题库弹窗截图 `real-question-bank-modal.png`，以及功能示意图（SVG）。
+`docs/assets/` 含真实截图 `real-screenshot.png`、`real-question-bank-modal.png` 及示意 SVG，可按需替换。
