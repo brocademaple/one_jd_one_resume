@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>一岗一历 · 求职增长引擎</title>
+    <meta
+      name="description"
+      content="一岗一历：产品宣传向展示页。面向求职全流程的 AI 工作台，连接岗位解析、简历定制、面试模拟和复盘提升。"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="grid-overlay"></div>
+    <div class="bg-glow bg-glow-left"></div>
+    <div class="bg-glow bg-glow-right"></div>
+
+    <header class="nav">
+      <div class="container nav-inner">
+        <div class="brand-wrap">
+          <div class="brand-dot"></div>
+          <div class="brand">一岗一历</div>
+        </div>
+        <div class="nav-actions">
+          <a class="nav-link" href="#compare">为什么是它</a>
+          <a class="nav-link" href="#screenshots">运行截图</a>
+          <a class="btn btn-nav" href="https://github.com/brocademaple/one_jd_one_resume" target="_blank" rel="noreferrer">GitHub</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero container">
+        <div class="hero-copy">
+          <span class="badge">AI 求职工作台</span>
+          <h1>把“海投式求职”<br />升级成可复用的增长系统</h1>
+          <p>
+            从岗位 JD 拆解到简历定制、从题库抽样到模拟面试复盘，
+            一岗一历把求职流程沉淀成可量化、可迭代、可复盘的工作流。
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#screenshots">查看真实截图</a>
+            <a class="btn btn-ghost" href="https://github.com/brocademaple/one_jd_one_resume" target="_blank" rel="noreferrer">立即体验源码</a>
+          </div>
+          <ul class="meta">
+            <li>FastAPI + React + TypeScript + Tailwind</li>
+            <li>多模型接入</li>
+            <li>简历 / 面试 / 复盘一体化</li>
+          </ul>
+        </div>
+        <div class="hero-visual card">
+          <div class="hero-carousel" aria-label="产品截图轮播">
+            <div class="hero-slides">
+              <img class="hero-slide active" src="./assets/real-screenshot.png" alt="一岗一历真实运行截图：主工作台" />
+              <img class="hero-slide" src="./assets/real-question-bank-modal.png" alt="一岗一历真实运行截图：题库配置弹窗" />
+            </div>
+            <div class="hero-dots" role="tablist" aria-label="截图切换">
+              <button class="hero-dot active" type="button" data-slide="0" aria-label="切换到第 1 张"></button>
+              <button class="hero-dot" type="button" data-slide="1" aria-label="切换到第 2 张"></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="metrics container">
+        <article class="metric card">
+          <p class="metric-value">4 合 1</p>
+          <p class="metric-label">JD 解析、简历、面试、复盘同屏协作</p>
+        </article>
+        <article class="metric card">
+          <p class="metric-value">多模型</p>
+          <p class="metric-label">Claude / 通义 / GLM / DeepSeek / Kimi 等</p>
+        </article>
+        <article class="metric card">
+          <p class="metric-value">可沉淀</p>
+          <p class="metric-label">题库与背景档案可持续迭代复用</p>
+        </article>
+      </section>
+
+      <section class="features container" id="compare">
+        <article class="feature card">
+          <h3>传统做法</h3>
+          <p>每次投递从零准备，简历与面试问题分散在多个工具里，复盘难以沉淀。</p>
+        </article>
+        <article class="feature card">
+          <h3>一岗一历方式</h3>
+          <p>围绕“岗位+背景”形成专属题库与简历版本，流程打通，输出结果可复用。</p>
+        </article>
+        <article class="feature card">
+          <h3>最终效果</h3>
+          <p>更快进入高质量准备状态，减少临场波动，让每一次面试都可持续进步。</p>
+        </article>
+      </section>
+
+      <section id="screenshots" class="screenshots container">
+        <div class="section-head">
+          <h2>运行截图</h2>
+          <p>已接入你的真实界面截图，并保留其他模块展示图。</p>
+        </div>
+        <div class="shot-grid">
+          <figure class="shot card">
+            <img src="./assets/real-screenshot.png" alt="应用总览真实运行截图" />
+            <figcaption>真实运行截图：岗位、简历、求职 Agent 同屏协作</figcaption>
+          </figure>
+          <figure class="shot card">
+            <img src="./assets/real-question-bank-modal.png" alt="题库配置弹窗真实运行截图" />
+            <figcaption>题库配置弹窗：追加生成、查看题库、编辑题库与类型筛选</figcaption>
+          </figure>
+          <figure class="shot card">
+            <img src="./assets/screen-export.svg" alt="导出预览运行截图" />
+            <figcaption>导出预览：可调字号与页边距，支持 PDF/Word</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="testimonials container">
+        <div class="section-head">
+          <h2>用户证言（示例）</h2>
+          <p>产品宣传页常用模块，后续可替换成真实访谈语句。</p>
+        </div>
+        <div class="quote-grid">
+          <blockquote class="quote card">
+            <p>“以前一场面试准备要拆 5 个工具，现在在一个页面内就能跑完整流程。”</p>
+            <footer>— 求职者 A / 产品方向</footer>
+          </blockquote>
+          <blockquote class="quote card">
+            <p>“按背景档案拆题库很关键，避免了不同岗位和简历之间的内容污染。”</p>
+            <footer>— 求职者 B / 技术方向</footer>
+          </blockquote>
+          <blockquote class="quote card">
+            <p>“复盘报告给的改进点很具体，第二次模拟明显更稳。”</p>
+            <footer>— 求职者 C / 运营方向</footer>
+          </blockquote>
+        </div>
+      </section>
+
+      <section class="cta container">
+        <div class="cta-card card">
+          <h2>准备好把求职流程产品化了吗？</h2>
+          <p>现在就克隆仓库，运行你自己的 AI 求职工作台。</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="https://github.com/brocademaple/one_jd_one_resume" target="_blank" rel="noreferrer">前往 GitHub</a>
+            <a class="btn btn-ghost" href="https://github.com/brocademaple/one_jd_one_resume/archive/refs/heads/main.zip">下载 ZIP</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer-inner">
+        <span>© OneJD OneResume</span>
+        <span>Built for focused job preparation · Product Marketing Page</span>
+      </div>
+    </footer>
+    <script>
+      (() => {
+        const slides = Array.from(document.querySelectorAll(".hero-slide"));
+        const dots = Array.from(document.querySelectorAll(".hero-dot"));
+        if (!slides.length || slides.length !== dots.length) return;
+
+        let current = 0;
+        let timer = null;
+
+        const setActive = (idx) => {
+          current = idx;
+          slides.forEach((el, i) => el.classList.toggle("active", i === idx));
+          dots.forEach((el, i) => el.classList.toggle("active", i === idx));
+        };
+
+        const next = () => setActive((current + 1) % slides.length);
+
+        const start = () => {
+          if (timer) clearInterval(timer);
+          timer = setInterval(next, 4200);
+        };
+
+        dots.forEach((dot, idx) => {
+          dot.addEventListener("click", () => {
+            setActive(idx);
+            start();
+          });
+        });
+
+        setActive(0);
+        start();
+      })();
+    </script>
+  </body>
+</html>
+

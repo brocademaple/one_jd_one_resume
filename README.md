@@ -258,3 +258,18 @@ export QIANFAN_API_KEY=...            # 百度文心
 | POST | /api/uploads/extract | 上传文件解析文本（OCR 等） |
 | POST | /api/uploads/parse-resume-background | 简历 PDF → 通义整理为候选人背景 Markdown（需通义 Key） |
 | POST | /api/uploads/parse-job | 上传文件解析岗位信息 |
+
+---
+
+## GitHub Pages 展示页
+
+仓库内已提供产品宣传页：`docs/index.html`（样式：`docs/styles.css`）。
+
+启用方式：
+
+1. 进入 GitHub 仓库 Settings → Pages  
+2. Source 选择 **Deploy from a branch**  
+3. Branch 选择 `main`，Folder 选择 `/docs`  
+4. 保存后等待发布，访问生成的 Pages 链接
+
+> 当前 `docs/assets/` 下已包含真实运行截图 `real-screenshot.png`、题库弹窗截图 `real-question-bank-modal.png`，以及功能示意图（SVG）。
