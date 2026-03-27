@@ -1,12 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+import json
+from pathlib import Path
 
 from database import get_db
 import models
 import schemas
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+
+
+@router.get("/competency-profiles")
+def list_competency_profiles():
+    fp = Path(__file__).resolve().parents[1] / "data" / "competency_models.json"
+    try:
+        data = json.loads(fp.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return {"profiles": ["default"]}
+        return {"profiles": list(data.keys())}
+    except Exception:
+        return {"profiles": ["default"]}
 
 
 @router.get("", response_model=List[schemas.JobResponse])

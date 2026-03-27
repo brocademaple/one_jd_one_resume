@@ -27,6 +27,21 @@ def _clean_content(content: str) -> str:
     return re.sub(r"===RESUME_END===\n?", "", content)
 
 
+@router.get("/markdown/{resume_id}")
+def export_markdown(resume_id: int, db: Session = Depends(get_db)):
+    db_resume = db.query(models.Resume).filter(models.Resume.id == resume_id).first()
+    if not db_resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    content = _clean_content(db_resume.content or "")
+    buffer = io.BytesIO(content.encode("utf-8"))
+    filename = _safe_filename(db_resume.title, "md", f"resume_{resume_id}.md")
+    return StreamingResponse(
+        buffer,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 def _safe_filename(title: Optional[str], suffix: str, fallback: str) -> str:
     if title:
         # Keep letters, digits, spaces, hyphens, and CJK (Unicode word chars)

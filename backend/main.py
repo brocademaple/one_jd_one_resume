@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from database import engine, Base
-from routers import jobs, resumes, chat, export, settings as settings_router, uploads, background, interview_sim
+from routers import jobs, resumes, chat, export, settings as settings_router, uploads, background, interview_sim, evaluation
 
 Base.metadata.create_all(bind=engine)
 
@@ -27,6 +27,8 @@ try:
             conn.execute(text("ALTER TABLE jobs ADD COLUMN job_url VARCHAR(500)"))
         if "salary" not in cols:
             conn.execute(text("ALTER TABLE jobs ADD COLUMN salary VARCHAR(128)"))
+        if "competency_profile" not in cols:
+            conn.execute(text("ALTER TABLE jobs ADD COLUMN competency_profile VARCHAR(80) DEFAULT 'default'"))
         # user_backgrounds：多人背景档案显示名
         result_bg = conn.execute(text("PRAGMA table_info(user_backgrounds)"))
         bg_cols = [r[1] for r in result_bg]
@@ -60,6 +62,59 @@ try:
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_job_interview_questions_job_id ON job_interview_questions (job_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_job_interview_questions_resume_id ON job_interview_questions (resume_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_job_interview_questions_background_profile_id ON job_interview_questions (background_profile_id)"))
+
+        # 按岗位保存的对话记录
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS job_conversations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    job_id INTEGER NOT NULL UNIQUE,
+                    messages TEXT NOT NULL DEFAULT '[]',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP,
+                    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+                )
+                """
+            )
+        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_job_conversations_job_id ON job_conversations (job_id)"))
+
+        # 结构化评估记录
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS evaluation_reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    job_id INTEGER NOT NULL,
+                    resume_id INTEGER,
+                    report_type VARCHAR(50) NOT NULL DEFAULT 'scorecard',
+                    content_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+                )
+                """
+            )
+        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_evaluation_reports_job_id ON evaluation_reports (job_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_evaluation_reports_resume_id ON evaluation_reports (resume_id)"))
+
+        # 候选人多角度简历：给 resumes 表补充背景档案归属与 angle 标记
+        result_r = conn.execute(text("PRAGMA table_info(resumes)"))
+        r_cols = [rr[1] for rr in result_r]
+        if "background_profile_id" not in r_cols:
+            conn.execute(
+                text(
+                    "ALTER TABLE resumes ADD COLUMN background_profile_id INTEGER"
+                )
+            )
+        if "angle" not in r_cols:
+            conn.execute(text("ALTER TABLE resumes ADD COLUMN angle VARCHAR(200)"))
+
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_resumes_background_profile_id ON resumes (background_profile_id)")
+        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_resumes_job_id ON resumes (job_id)"))
 except Exception:
     pass
 
@@ -77,6 +132,7 @@ app.include_router(jobs.router)
 app.include_router(resumes.router)
 app.include_router(chat.router)
 app.include_router(interview_sim.router)
+app.include_router(evaluation.router)
 app.include_router(export.router)
 app.include_router(settings_router.router)
 app.include_router(uploads.router)

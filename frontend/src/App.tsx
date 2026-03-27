@@ -86,24 +86,43 @@ function App() {
     }
   }, [setCurrentProvider]);
 
+  // 1) 先加载岗位列表（与候选人无关）
   useEffect(() => {
-    const load = async () => {
+    const loadJobs = async () => {
       try {
-        const [jobsData, resumesData] = await Promise.all([
-          fetchJobs(),
-          fetchResumes(),
-        ]);
+        const jobsData = await fetchJobs();
         setJobs(jobsData);
-        setResumes(resumesData);
         await loadProviderInfo();
       } catch (err) {
-        handleApiError(err, '加载数据失败');
+        handleApiError(err, '加载岗位失败');
+      }
+    };
+    void loadJobs();
+  }, [loadProviderInfo, setJobs]);
+
+  // 2) 再按当前候选人（人物背景档案）加载该候选人的多份简历
+  useEffect(() => {
+    const loadResumes = async () => {
+      try {
+        setLoading(true);
+        const resumesData = await fetchResumes({
+          backgroundProfileId: bg.activeProfileId,
+        });
+        setResumes(resumesData);
+        if (selectedJob) {
+          // 切换候选人后，确保选中的简历仍落在当前岗位下
+          selectJob(selectedJob);
+        }
+      } catch (err) {
+        handleApiError(err, '加载简历失败');
       } finally {
         setLoading(false);
       }
     };
-    load();
-  }, [loadProviderInfo, setJobs, setResumes, setLoading]);
+
+    void loadResumes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bg.activeProfileId, selectedJob, setResumes, setLoading, selectJob]);
 
   // Simplified handlers using Zustand actions
   const handleSelectJob = useCallback((job: typeof selectedJob) => {
@@ -147,13 +166,14 @@ function App() {
         job_id: jobId,
         content: `# 简历\n\n> 请与Agent对话生成定制简历内容。`,
         title,
+        background_profile_id: bg.activeProfileId,
       });
       addResume(resume);
       selectJob(job);
     } catch (err) {
       handleApiError(err, '创建简历失败');
     }
-  }, [jobs, addResume, selectJob]);
+  }, [jobs, addResume, selectJob, bg.activeProfileId]);
 
   const handleSidebarResize = useCallback((delta: number) => {
     setSidebarWidth(Math.max(180, Math.min(400, sidebarWidth + delta)));
@@ -253,6 +273,7 @@ function App() {
             <ChatPanel
               jobId={selectedJob?.id ?? null}
               jobTitle={selectedJob?.title ?? null}
+              jobCompany={selectedJob?.company ?? null}
               resumeId={selectedResume?.id ?? null}
               onResumeCreated={handleResumeCreated}
               onResumeUpdated={handleResumeUpdated}

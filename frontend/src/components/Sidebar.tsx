@@ -4,6 +4,7 @@ import { Job, Resume, CurrentProvider, JOB_STATUS_OPTIONS } from '../types';
 import { getStatusConfig } from '../utils/jobStatus';
 import { getInterviewGuideTitle, saveInterviewGuideTitle, clearInterviewGuide } from '../utils/interviewNotes';
 import { createJob, deleteJob, deleteResume, parseJobFromFile, updateResume } from '../api';
+import { fetchCompetencyProfiles } from '../api';
 
 interface SidebarProps {
   jobs: Job[];
@@ -30,6 +31,7 @@ interface NewJobForm {
   salary: string;
   company: string;
   status: string;
+  competency_profile: string;
   responsibilities: string;
   requirements: string;
   bonus: string;
@@ -58,8 +60,9 @@ export function Sidebar(props: SidebarProps) {
   const editingGuideInputRef = useRef<HTMLInputElement>(null);
   const [showNewJobModal, setShowNewJobModal] = useState(false);
   const [newJobForm, setNewJobForm] = useState<NewJobForm>({
-    link: '', title: '', salary: '', company: '', status: 'pending', responsibilities: '', requirements: '', bonus: '',
+    link: '', title: '', salary: '', company: '', status: 'pending', competency_profile: 'default', responsibilities: '', requirements: '', bonus: '',
   });
+  const [competencyProfiles, setCompetencyProfiles] = useState<string[]>(['default']);
   const [creating, setCreating] = useState(false);
   const [parsing, setParsing] = useState(false);
 
@@ -69,6 +72,11 @@ export function Sidebar(props: SidebarProps) {
   useEffect(() => {
     if (editingGuideJobId !== null) editingGuideInputRef.current?.focus();
   }, [editingGuideJobId]);
+  useEffect(() => {
+    fetchCompetencyProfiles()
+      .then((res) => setCompetencyProfiles(res.profiles?.length ? res.profiles : ['default']))
+      .catch(() => setCompetencyProfiles(['default']));
+  }, []);
 
   const startEditResumeTitle = (resume: Resume) => {
     setEditingResumeId(resume.id);
@@ -126,9 +134,10 @@ export function Sidebar(props: SidebarProps) {
         salary: newJobForm.salary?.trim() || undefined,
         content: buildJobContent(newJobForm),
         status: newJobForm.status,
+        competency_profile: newJobForm.competency_profile,
       });
       onJobCreated(job);
-      setNewJobForm({ link: '', title: '', salary: '', company: '', status: 'pending', responsibilities: '', requirements: '', bonus: '' });
+      setNewJobForm({ link: '', title: '', salary: '', company: '', status: 'pending', competency_profile: 'default', responsibilities: '', requirements: '', bonus: '' });
       setShowNewJobModal(false);
       setExpandedJobs(prev => new Set(prev).add(job.id));
     } finally {
@@ -298,6 +307,7 @@ export function Sidebar(props: SidebarProps) {
             </div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">岗位链接（选填）</label><input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" type="url" value={newJobForm.link} onChange={e => setNewJobForm(f => ({ ...f, link: e.target.value }))} placeholder="如：https://..." /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">状态</label><select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={newJobForm.status} onChange={e => setNewJobForm(f => ({ ...f, status: e.target.value }))}>{JOB_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">胜任力模型</label><select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={newJobForm.competency_profile} onChange={e => setNewJobForm(f => ({ ...f, competency_profile: e.target.value }))}>{competencyProfiles.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">岗位名称 *</label><input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={newJobForm.title} onChange={e => setNewJobForm(f => ({ ...f, title: e.target.value }))} placeholder="如：高级前端工程师" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">薪资</label><input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={newJobForm.salary} onChange={e => setNewJobForm(f => ({ ...f, salary: e.target.value }))} placeholder="如：25-40K" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">公司名称</label><input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" value={newJobForm.company} onChange={e => setNewJobForm(f => ({ ...f, company: e.target.value }))} placeholder="如：某某科技有限公司" /></div>

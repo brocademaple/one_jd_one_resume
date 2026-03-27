@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Briefcase, Edit3, Save, X, Link2, DollarSign } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Job, JOB_STATUS_OPTIONS } from '../types';
-import { updateJob } from '../api';
+import { fetchCompetencyProfiles, updateJob } from '../api';
 import { getStatusConfig } from '../utils/jobStatus';
 
 interface JDPanelProps {
@@ -19,7 +19,15 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
   const [editSalary, setEditSalary] = useState('');
   const [editStatus, setEditStatus] = useState('');
   const [editContent, setEditContent] = useState('');
+  const [editCompetencyProfile, setEditCompetencyProfile] = useState('default');
+  const [competencyProfiles, setCompetencyProfiles] = useState<string[]>(['default']);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchCompetencyProfiles()
+      .then((res) => setCompetencyProfiles(res.profiles?.length ? res.profiles : ['default']))
+      .catch(() => setCompetencyProfiles(['default']));
+  }, []);
 
   const startEdit = () => {
     if (!job) return;
@@ -28,6 +36,7 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
     setEditJobUrl(job.job_url || '');
     setEditSalary(job.salary || '');
     setEditStatus(job.status || 'pending');
+    setEditCompetencyProfile(job.competency_profile || 'default');
     setEditContent(job.content);
     setEditing(true);
   };
@@ -42,6 +51,7 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
         job_url: editJobUrl.trim() || undefined,
         salary: editSalary.trim() || undefined,
         status: editStatus,
+        competency_profile: editCompetencyProfile,
         content: editContent,
       });
       onJobUpdated(updated);
@@ -170,6 +180,16 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
                   placeholder="如：25-40K"
                 />
               </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">胜任力模型</label>
+                <select
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  value={editCompetencyProfile}
+                  onChange={e => setEditCompetencyProfile(e.target.value)}
+                >
+                  {competencyProfiles.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
             </div>
             <textarea
               className="flex-1 w-full p-4 text-sm text-gray-700 outline-none resize-none font-mono leading-relaxed min-h-0"
@@ -194,6 +214,9 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
                 )}
               </div>
             )}
+            <div className="mx-4 mt-3 text-xs text-gray-600">
+              胜任力模型：<span className="font-medium text-gray-800">{job.competency_profile || 'default'}</span>
+            </div>
             <div className={`mx-4 mt-3 flex items-center gap-2 px-3 py-2 rounded-lg ${statusCfg.bgColorLight} ${statusCfg.colorLight}`}>
               <StatusIcon size={16} />
               <span className="text-sm font-medium">当前状态：{statusCfg.label}</span>

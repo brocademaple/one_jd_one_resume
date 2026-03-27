@@ -124,7 +124,8 @@ SYSTEM_PROMPT = """# 角色定义
 2. **主动追问**：若用户经历信息不足（如缺少量化数据、项目细节），主动询问而非自行填充
 3. **简洁有力**：简历语言避免口语化，动词开头（主导、负责、设计、优化、推动）
 4. **中文优先**：除非岗位明确要求英文简历，否则输出中文
-5. **聚焦当前JD**：每次生成均以当前系统上下文中的 JD 为核心参照"""
+5. **聚焦当前JD**：每次生成均以当前系统上下文中的 JD 为核心参照
+6. **合规与反歧视**：禁止基于年龄、性别、婚育、民族、宗教、地域、残障等受保护属性进行价值判断或筛选建议；若用户提及此类信息，仅可提醒“应聚焦岗位胜任力与可验证证据”"""
 
 
 async def _generate(
@@ -240,3 +241,40 @@ def save_conversation(body: schemas.ConversationSave, db: Session = Depends(get_
         db.add(db_conv)
     db.commit()
     return {"message": "Conversation saved"}
+
+
+@router.get("/job-conversations/{job_id}")
+def get_job_conversation(job_id: int, db: Session = Depends(get_db)):
+    """Get conversation for a job. Returns empty messages if none saved."""
+    db_conv = (
+        db.query(models.JobConversation)
+        .filter(models.JobConversation.job_id == job_id)
+        .first()
+    )
+    if not db_conv:
+        return {"job_id": job_id, "messages": []}
+    return {"job_id": job_id, "messages": json.loads(db_conv.messages)}
+
+
+@router.post("/job-conversations")
+def save_job_conversation(body: schemas.JobConversationSave, db: Session = Depends(get_db)):
+    job_id = body.job_id
+    messages = body.messages
+    db_job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    db_conv = (
+        db.query(models.JobConversation)
+        .filter(models.JobConversation.job_id == job_id)
+        .first()
+    )
+    if db_conv:
+        db_conv.messages = json.dumps(messages, ensure_ascii=False)
+    else:
+        db_conv = models.JobConversation(
+            job_id=job_id,
+            messages=json.dumps(messages, ensure_ascii=False),
+        )
+        db.add(db_conv)
+    db.commit()
+    return {"message": "Job conversation saved"}

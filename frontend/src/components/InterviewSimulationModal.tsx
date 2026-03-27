@@ -1,13 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Mic, Send, Loader2, ClipboardCheck, ArrowLeft, Square, ChevronDown } from 'lucide-react';
+import { X, Mic, Send, Loader2, ClipboardCheck, ArrowLeft, Square, ChevronDown, History } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Message } from '../types';
 import {
   streamInterviewSim,
   fetchInterviewReport,
+  fetchEvaluationScorecard,
+  fetchEvaluationScorecardHistory,
+  fetchEvaluationScorecardHistoryDetail,
   fetchInterviewQuestionnaire,
   type QuestionnaireItem,
+  type EvaluationScorecardApiResponse,
+  type EvaluationScorecardHistoryItem,
 } from '../api';
 import { parseInterviewSimReply, interviewSimMessageForReport } from '../utils/parseInterviewSimReply';
 import { handleApiError } from '../utils/errorHandler';
@@ -64,6 +69,11 @@ export function InterviewSimulationModal({
   const [streaming, setStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
   const [reportMd, setReportMd] = useState('');
+  const [scorecard, setScorecard] = useState<EvaluationScorecardApiResponse | null>(null);
+  const [scorecardLoading, setScorecardLoading] = useState(false);
+  const [scorecardHistoryOpen, setScorecardHistoryOpen] = useState(false);
+  const [scorecardHistoryLoading, setScorecardHistoryLoading] = useState(false);
+  const [scorecardHistory, setScorecardHistory] = useState<EvaluationScorecardHistoryItem[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [questionnaireItems, setQuestionnaireItems] = useState<QuestionnaireItem[]>([]);
   const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
@@ -99,6 +109,11 @@ export function InterviewSimulationModal({
     setStreaming(false);
     setStreamingContent('');
     setReportMd('');
+    setScorecard(null);
+    setScorecardLoading(false);
+    setScorecardHistoryOpen(false);
+    setScorecardHistoryLoading(false);
+    setScorecardHistory([]);
     setReportLoading(false);
     setQuestionnaireItems([]);
     setQuestionnaireLoading(false);
@@ -227,6 +242,67 @@ export function InterviewSimulationModal({
   const handleBackToInterview = () => {
     setPhase('interview');
     setReportMd('');
+    setScorecard(null);
+    setScorecardHistoryOpen(false);
+  };
+
+  const buildTranscript = (msgs: SimMsg[]): string => {
+    return msgs
+      .map((m) => `${m.role === 'user' ? '候选人' : '面试官'}：\n${m.content}`)
+      .join('\n\n---\n\n');
+  };
+
+  const handleGenerateScorecard = async () => {
+    if (scorecardLoading || messages.length === 0) return;
+    setScorecardLoading(true);
+    try {
+      const data = await fetchEvaluationScorecard({
+        jobId,
+        resumeId,
+        transcript: buildTranscript(messages),
+        userBackground,
+      });
+      setScorecard(data);
+    } catch (e) {
+      handleApiError(e, '生成结构化评分卡失败');
+    } finally {
+      setScorecardLoading(false);
+    }
+  };
+
+  const parseStoredScorecard = (contentJson: string): EvaluationScorecardApiResponse | null => {
+    try {
+      const data = JSON.parse(contentJson);
+      if (!data || typeof data !== 'object') return null;
+      return data as EvaluationScorecardApiResponse;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleOpenScorecardHistory = async () => {
+    setScorecardHistoryOpen(true);
+    setScorecardHistoryLoading(true);
+    try {
+      const list = await fetchEvaluationScorecardHistory({ jobId, resumeId, limit: 30 });
+      setScorecardHistory(list);
+    } catch (e) {
+      handleApiError(e, '加载评分卡历史失败');
+    } finally {
+      setScorecardHistoryLoading(false);
+    }
+  };
+
+  const handleUseHistoryItem = async (item: EvaluationScorecardHistoryItem) => {
+    try {
+      const detail = await fetchEvaluationScorecardHistoryDetail(item.id);
+      const parsed = parseStoredScorecard(detail.content_json);
+      if (!parsed) throw new Error('invalid scorecard');
+      setScorecard(parsed);
+      setScorecardHistoryOpen(false);
+    } catch (e) {
+      handleApiError(e, '读取历史评分卡失败');
+    }
   };
 
   if (!open) return null;
@@ -289,6 +365,23 @@ export function InterviewSimulationModal({
                 <ClipboardCheck size={14} className="inline mr-1" />
                 复制报告
               </button>
+              <button
+                type="button"
+                className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                onClick={() => void handleGenerateScorecard()}
+                disabled={scorecardLoading}
+              >
+                {scorecardLoading ? <Loader2 size={14} className="inline mr-1 animate-spin" /> : null}
+                结构化评分卡
+              </button>
+              <button
+                type="button"
+                className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+                onClick={() => void handleOpenScorecardHistory()}
+              >
+                <History size={14} className="inline mr-1" />
+                评分卡历史
+              </button>
               <button type="button" className="p-2 rounded-lg text-gray-500 hover:bg-gray-100" onClick={onClose}>
                 <X size={20} />
               </button>
@@ -302,6 +395,79 @@ export function InterviewSimulationModal({
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{reportMd}</ReactMarkdown>
             ) : (
               <p className="text-gray-500 text-sm">暂无报告</p>
+            )}
+            {scorecard && (
+              <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50/60 p-3 not-prose">
+                <h3 className="text-sm font-semibold text-amber-900 mb-1">结构化评分卡</h3>
+                <p className="text-xs text-amber-900/90 mb-2">
+                  总分：{scorecard.overall_score} · {scorecard.overall_summary}
+                </p>
+                <div className="space-y-2">
+                  {scorecard.items.map((it, idx) => (
+                    <div key={`${it.competency}-${idx}`} className="rounded border border-amber-200 bg-white p-2">
+                      <div className="text-xs font-medium text-gray-800">
+                        {it.competency} · {it.score} 分（置信度：{it.confidence}）
+                      </div>
+                      <p className="text-xs text-gray-700 mt-1">{it.summary}</p>
+                      {it.evidence?.length ? (
+                        <ul className="list-disc pl-4 mt-1 text-xs text-gray-600">
+                          {it.evidence.map((ev, i) => (
+                            <li key={i}>[{ev.source}] {ev.quote}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {it.gap ? <p className="text-xs text-rose-700 mt-1">差距：{it.gap}</p> : null}
+                      {it.suggestion ? <p className="text-xs text-emerald-700 mt-1">建议：{it.suggestion}</p> : null}
+                    </div>
+                  ))}
+                </div>
+                {scorecard.needs_verification?.length ? (
+                  <div className="mt-2 text-xs text-gray-700">
+                    <span className="font-medium">待验证项：</span>
+                    {scorecard.needs_verification.join('；')}
+                  </div>
+                ) : null}
+              </div>
+            )}
+            {scorecardHistoryOpen && (
+              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50/80 p-3 not-prose">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-gray-800">评分卡历史</h3>
+                  <button
+                    type="button"
+                    className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-white"
+                    onClick={() => setScorecardHistoryOpen(false)}
+                  >
+                    收起
+                  </button>
+                </div>
+                {scorecardHistoryLoading ? (
+                  <p className="text-xs text-gray-500">加载中...</p>
+                ) : scorecardHistory.length === 0 ? (
+                  <p className="text-xs text-gray-500">暂无历史评分卡</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {scorecardHistory.map((item) => {
+                      const preview = parseStoredScorecard(item.content_json);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className="w-full text-left rounded border border-gray-200 bg-white px-2.5 py-2 hover:bg-amber-50"
+                          onClick={() => void handleUseHistoryItem(item)}
+                        >
+                          <div className="text-xs font-medium text-gray-800">
+                            #{item.id} · 总分 {preview?.overall_score ?? '-'} · {new Date(item.created_at).toLocaleString()}
+                          </div>
+                          <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                            {preview?.overall_summary || '点击查看详情'}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         ) : (
@@ -318,6 +484,9 @@ export function InterviewSimulationModal({
                     ) : (
                       <span className="block mt-2 text-gray-500">语音需浏览器支持；也可全程手动输入。</span>
                     )}
+                    <span className="block mt-2 text-rose-700/90">
+                      合规提示：模拟仅评估岗位胜任力，不涉及年龄、婚育、民族、宗教等受保护属性。
+                    </span>
                   </p>
                   <button
                     type="button"

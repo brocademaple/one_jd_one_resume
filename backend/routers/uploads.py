@@ -132,7 +132,7 @@ async def extract_text(file: UploadFile = File(...)):
     if not content:
         raise HTTPException(status_code=400, detail="上传文件为空")
     try:
-        text, parser = extract_text_from_file(file.filename or "")
+        text, parser = extract_text_from_file(file.filename or "", content)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"文件解析失败: {exc}") from exc
 
@@ -148,7 +148,7 @@ async def parse_job(file: UploadFile = File(...)):
     if not content:
         raise HTTPException(status_code=400, detail="上传文件为空")
     try:
-        text, _ = extract_text_from_file(file.filename or "")
+        text, _ = extract_text_from_file(file.filename or "", content)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"JD解析失败: {exc}") from exc
     if not text:

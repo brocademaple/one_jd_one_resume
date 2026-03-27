@@ -9,7 +9,7 @@ export const fetchJobs = async (): Promise<Job[]> => {
   return res.json();
 };
 
-export const createJob = async (data: { title: string; company?: string; job_url?: string; salary?: string; content: string; status?: string }): Promise<Job> => {
+export const createJob = async (data: { title: string; company?: string; job_url?: string; salary?: string; competency_profile?: string; content: string; status?: string }): Promise<Job> => {
   const res = await fetch(`${BASE_URL}/jobs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -29,20 +29,38 @@ export const updateJob = async (id: number, data: Partial<Job>): Promise<Job> =>
   return res.json();
 };
 
+export const fetchCompetencyProfiles = async (): Promise<{ profiles: string[] }> => {
+  const res = await fetch(`${BASE_URL}/jobs/competency-profiles`);
+  if (!res.ok) throw new Error('Failed to fetch competency profiles');
+  return res.json();
+};
+
 export const deleteJob = async (id: number): Promise<void> => {
   const res = await fetch(`${BASE_URL}/jobs/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete job');
 };
 
 // Resumes
-export const fetchResumes = async (jobId?: number): Promise<Resume[]> => {
-  const url = jobId ? `${BASE_URL}/resumes?job_id=${jobId}` : `${BASE_URL}/resumes`;
+export const fetchResumes = async (params?: {
+  jobId?: number;
+  backgroundProfileId?: number | null;
+}): Promise<Resume[]> => {
+  const sp = new URLSearchParams();
+  if (params?.jobId != null) sp.set('job_id', String(params.jobId));
+  if (params?.backgroundProfileId != null) sp.set('background_profile_id', String(params.backgroundProfileId));
+  const url = sp.toString() ? `${BASE_URL}/resumes?${sp.toString()}` : `${BASE_URL}/resumes`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch resumes');
   return res.json();
 };
 
-export const createResume = async (data: { job_id: number; title?: string; content: string }): Promise<Resume> => {
+export const createResume = async (data: {
+  job_id: number;
+  title?: string;
+  content: string;
+  background_profile_id?: number | null;
+  angle?: string | null;
+}): Promise<Resume> => {
   const res = await fetch(`${BASE_URL}/resumes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -403,6 +421,79 @@ export const fetchInterviewReport = async (params: {
   return res.json();
 };
 
+export interface EvaluationScorecardApiResponse {
+  overall_score: number;
+  overall_summary: string;
+  items: Array<{
+    competency: string;
+    score: number;
+    confidence: string;
+    summary: string;
+    evidence: Array<{ source: string; quote: string; why?: string | null }>;
+    gap?: string | null;
+    suggestion?: string | null;
+  }>;
+  needs_verification: string[];
+}
+
+export interface EvaluationScorecardHistoryItem {
+  id: number;
+  job_id: number;
+  resume_id?: number | null;
+  report_type: string;
+  content_json: string;
+  created_at: string;
+}
+
+export const fetchEvaluationScorecard = async (params: {
+  jobId: number;
+  resumeId: number;
+  transcript?: string;
+  userBackground?: string;
+}): Promise<EvaluationScorecardApiResponse> => {
+  const res = await fetch(`${BASE_URL}/evaluation/scorecard`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      job_id: params.jobId,
+      resume_id: params.resumeId,
+      transcript: params.transcript,
+      user_background: params.userBackground,
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(t || 'Scorecard request failed');
+  }
+  return res.json();
+};
+
+export const fetchEvaluationScorecardHistory = async (params: {
+  jobId: number;
+  resumeId?: number;
+  limit?: number;
+}): Promise<EvaluationScorecardHistoryItem[]> => {
+  const sp = new URLSearchParams();
+  sp.set('job_id', String(params.jobId));
+  if (params.resumeId != null) sp.set('resume_id', String(params.resumeId));
+  if (params.limit != null) sp.set('limit', String(params.limit));
+  const res = await fetch(`${BASE_URL}/evaluation/scorecard-history?${sp.toString()}`);
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(t || 'Failed to fetch scorecard history');
+  }
+  return res.json();
+};
+
+export const fetchEvaluationScorecardHistoryDetail = async (reportId: number): Promise<EvaluationScorecardHistoryItem> => {
+  const res = await fetch(`${BASE_URL}/evaluation/scorecard-history/${reportId}`);
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(t || 'Failed to fetch scorecard history detail');
+  }
+  return res.json();
+};
+
 // Export
 export interface ExportOptions {
   fontSize: number;
@@ -564,6 +655,25 @@ export const saveConversation = async (resumeId: number, messages: Message[]): P
     }),
   });
   if (!res.ok) throw new Error('Failed to save conversation');
+};
+
+export const fetchJobConversation = async (jobId: number): Promise<{ job_id: number; messages: Message[] }> => {
+  const res = await fetch(`${BASE_URL}/chat/job-conversations/${jobId}`);
+  if (!res.ok) throw new Error('Failed to fetch job conversation');
+  const data = await res.json();
+  return { job_id: data.job_id, messages: data.messages || [] };
+};
+
+export const saveJobConversation = async (jobId: number, messages: Message[]): Promise<void> => {
+  const res = await fetch(`${BASE_URL}/chat/job-conversations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      job_id: jobId,
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+    }),
+  });
+  if (!res.ok) throw new Error('Failed to save job conversation');
 };
 
 // 人物背景档案（多条 CRUD）

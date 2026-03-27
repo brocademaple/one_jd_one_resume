@@ -11,6 +11,7 @@ class JobBase(BaseModel):
     company: Optional[str] = None
     job_url: Optional[str] = None
     salary: Optional[str] = None
+    competency_profile: Optional[str] = "default"
     content: str
     status: Optional[str] = "pending"
 
@@ -24,6 +25,7 @@ class JobUpdate(BaseModel):
     company: Optional[str] = None
     job_url: Optional[str] = None
     salary: Optional[str] = None
+    competency_profile: Optional[str] = None
     content: Optional[str] = None
     status: Optional[str] = None
 
@@ -41,6 +43,8 @@ class ResumeBase(BaseModel):
     title: Optional[str] = None
     content: str
     job_id: int
+    background_profile_id: Optional[int] = None
+    angle: Optional[str] = None
 
 
 class ResumeCreate(ResumeBase):
@@ -50,6 +54,8 @@ class ResumeCreate(ResumeBase):
 class ResumeUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
+    background_profile_id: Optional[int] = None
+    angle: Optional[str] = None
 
 
 class ResumeResponse(ResumeBase):
@@ -171,6 +177,48 @@ class JobQuestionDeleteResponse(BaseModel):
     deleted: int
 
 
+class EvidenceRef(BaseModel):
+    source: str
+    quote: str
+    why: Optional[str] = None
+
+
+class ScoreCardItem(BaseModel):
+    competency: str
+    score: int
+    confidence: str
+    summary: str
+    evidence: List[EvidenceRef]
+    gap: Optional[str] = None
+    suggestion: Optional[str] = None
+
+
+class EvaluationScorecardRequest(BaseModel):
+    job_id: int
+    resume_id: int
+    transcript: Optional[str] = None
+    user_background: Optional[str] = None
+
+
+class EvaluationScorecardResponse(BaseModel):
+    overall_score: int
+    overall_summary: str
+    items: List[ScoreCardItem]
+    needs_verification: List[str]
+
+
+class EvaluationReportListItem(BaseModel):
+    id: int
+    job_id: int
+    resume_id: Optional[int] = None
+    report_type: str
+    content_json: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class InterviewReportRequest(BaseModel):
     job_id: int
     resume_id: int
@@ -190,6 +238,11 @@ class ConversationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class JobConversationSave(BaseModel):
+    job_id: int
+    messages: List[dict]
 
 
 class BackgroundProfileResponse(BaseModel):

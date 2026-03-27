@@ -15,6 +15,7 @@ export interface Job {
   company?: string;
   job_url?: string;
   salary?: string;
+  competency_profile?: string;
   content: string;
   status?: JobStatus | string;
   created_at: string;
@@ -27,6 +28,8 @@ export interface Resume {
   title?: string;
   content: string;
   version: number;
+  background_profile_id?: number | null;
+  angle?: string | null;
   created_at: string;
   updated_at?: string;
 }

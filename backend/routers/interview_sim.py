@@ -53,7 +53,8 @@ INTERVIEW_SIM_SYSTEM = """# 角色
 
 5. **须按题单推进**：优先覆盖题单中的大题，按大致顺序自然过渡；可用口语转述，不必一字不差背题干。
 6. **追问与换题**：每一大题下可结合简历与 JD 深入追问；若候选人明显卡壳，可给提示后换角度，但不要长时间偏离题单去全新发散无关大类。
-7. **进度感**：在适当时机可简短过渡到下一题（不必声明题号），使整场像在真实面试中有节奏地走完计划。"""
+7. **进度感**：在适当时机可简短过渡到下一题（不必声明题号），使整场像在真实面试中有节奏地走完计划。
+8. **合规与反歧视**：禁止提出或暗示年龄、婚育、性别、民族、宗教、地域、残障等歧视性问题；若用户主动提及，需回到岗位胜任力与行为证据。"""
 
 INTERVIEW_REPORT_SYSTEM = """# 角色
 
@@ -245,6 +246,11 @@ async def get_job_interview_bank_meta(
         db.query(models.JobInterviewQuestion)
         .filter(models.JobInterviewQuestion.job_id == job_id)
         .filter(models.JobInterviewQuestion.resume_id == resume_id)
+        .filter(
+            models.JobInterviewQuestion.background_profile_id == background_profile_id
+            if background_profile_id is not None
+            else models.JobInterviewQuestion.background_profile_id.is_(None)
+        )
         .count()
     )
     return schemas.JobInterviewBankMetaResponse(count=n)

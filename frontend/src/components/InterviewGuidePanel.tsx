@@ -132,19 +132,19 @@ export function InterviewGuidePanel({
             <BookOpen size={16} className="text-amber-500 flex-shrink-0" />
             <span className="truncate">{title || '面试指导'}</span>
           </div>
-          <span className="text-[10px] text-amber-800/70 font-normal pl-5 truncate w-full" title="题库生成/预览/类型选择均在子界面完成">
-            专属题库 {jobBankCount} 题 · 点击「题库」管理并开始模拟
+          <span className="text-[10px] text-amber-800/70 font-normal pl-5 truncate w-full" title="面试准备中心：题库生成/预览/编辑/类型选择/开始模拟">
+            专属题库 {jobBankCount} 题 · 点击「面试准备」统一管理并开始模拟
           </span>
         </div>
         <div className="flex flex-wrap gap-2 w-full">
           <button
             type="button"
             className="px-3 py-1.5 rounded-lg text-sm text-amber-800 hover:bg-amber-100 disabled:opacity-50 flex items-center gap-2 min-w-[120px] justify-center"
-            title="打开题库子界面：生成/预览/类型选择/开始面试"
+            title="打开面试准备中心：题库生成/预览/编辑/类型选择/开始模拟"
             onClick={() => setQuestionBankOpen(true)}
           >
             <Sparkles size={14} className="opacity-70" />
-            题库
+            面试准备
           </button>
           {editing ? (
             <>
