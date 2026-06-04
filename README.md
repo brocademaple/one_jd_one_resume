@@ -1,295 +1,320 @@
 <div align="center">
 
-# 💼 一岗一历 — OneJD OneResume
+# OneJD OneResume
 
----
+### An AI workbench for job-specific resumes, interview preparation, and repeatable application workflows
 
-### 📋 一套「岗位驱动」的智能求职工作台
-
-<img src="./docs/assets/real-screenshot.png" alt="一岗一历 主界面截图" width="92%" />
+<img src="./docs/assets/real-screenshot.png" alt="OneJD OneResume main application screenshot" width="92%" />
 
 <br/>
 
-[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-展示页-E11D48?style=for-the-badge&logo=githubpages&logoColor=white)](https://brocademaple.github.io/one_jd_one_resume/)
-[![Repo](https://img.shields.io/badge/REPO-one__jd__one__resume-475569?style=for-the-badge&logo=github&logoColor=white)](https://github.com/brocademaple/one_jd_one_resume)
-[![Stack](https://img.shields.io/badge/STACK-FastAPI%20%7C%20React-0ea5e9?style=for-the-badge)](https://github.com/brocademaple/one_jd_one_resume)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20Demo-E11D48?style=for-the-badge&logo=githubpages&logoColor=white)](https://brocademaple.github.io/one_jd_one_resume/)
+[![Repository](https://img.shields.io/badge/Repo-one__jd__one__resume-475569?style=for-the-badge&logo=github&logoColor=white)](https://github.com/brocademaple/one_jd_one_resume)
+[![Stack](https://img.shields.io/badge/Stack-FastAPI%20%7C%20React-0ea5e9?style=for-the-badge)](https://github.com/brocademaple/one_jd_one_resume)
 
 <br/>
 
-[![AI](https://img.shields.io/badge/AI-多模型接入-8b5cf6?style=for-the-badge)](https://github.com/brocademaple/one_jd_one_resume#支持的-ai-提供商)
+[![AI](https://img.shields.io/badge/AI-Multi--provider%20LLM%20support-8b5cf6?style=for-the-badge)](#supported-ai-providers)
 [![Web](https://img.shields.io/badge/Web-Vite%20%2B%20TypeScript-38bdf8?style=for-the-badge)](https://github.com/brocademaple/one_jd_one_resume)
 
-<br/>
+**OneJD OneResume** is a public AI job-search workbench built around a simple idea: every job description deserves its own application workspace.
 
-> **一岗一历**是一款以「**一岗一档**」为核心的智能求职 Agent。它不只做简历润色，而是把**岗位 JD、定制简历、面试指导、专属题库、模拟面试与复盘**串成一条可复用工作流，让每一次投递与面试都**有据可依、可持续迭代**。
+Languages: English | [简体中文](./README.zh-CN.md)
 
-🌐 **项目展示页 (GitHub Pages)：** [https://brocademaple.github.io/one_jd_one_resume/](https://brocademaple.github.io/one_jd_one_resume/)
+The project connects job descriptions, tailored resumes, interview notes, custom question banks, mock interviews, and review reports into a reusable workflow. It is designed for candidates, career coaches, and builders who want a structured way to turn application materials into an iterative, evidence-based process.
+
+**Live demo:** [https://brocademaple.github.io/one_jd_one_resume/](https://brocademaple.github.io/one_jd_one_resume/)
 
 </div>
 
 ---
 
-## 功能特性
+## Why This Project Exists
 
-- **JD 管理** — 新建、编辑、删除岗位描述，支持状态与链接
-- **简历定制** — AI Agent 根据 JD 和个人经历生成定制简历，多岗位多版本
-- **面试指导** — 按岗位维护一份 Markdown 文档，支持改名/删除；选中对话内容右键「添加到面试指导」；与定制简历平级展示
-- **模拟面试** — 面试指导栏：**星火**=按 JD **追加**专属题（`POST .../generate-bank`，`replace=false` 默认）；**循环箭头**=覆盖重生成；**橡皮**=清空专属题；**眼睛**=预览预置/专属题库（`GET .../bank-preview`）。开始模拟前可勾选**题目类型**，接口按类型过滤后随机抽题（`GET .../questionnaire?categories=`）。**麦克风**=打开模拟界面；结束后 Markdown 复盘报告（可复制）
-- **多人背景档案** — 「我的背景」可维护多份人物档案（显示名 + 正文），下拉切换；当前选中项保存在浏览器 localStorage，对话时带入对应正文
-- **简历 PDF 智能解析** — 上传简历 PDF 时通过通义千问将内容整理为「候选人背景」Markdown（需配置通义 API Key）；扫描类 PDF 使用多模态模型读图
-- **对话式交互** — 自然语言对话优化简历，快捷提示（生成简历、面试辅导、优化润色等）
-- **简历导出** — 导出前弹窗预览，可调字体大小、页边距，支持 PDF / Word，确定后选择保存位置
-- **文件管理** — 岗位列表下展示该岗位的定制简历与面试指导，支持编辑、导出、删除
-- **多模型支持** — 可切换 Claude / 通义千问 / 智谱 / DeepSeek / Kimi / 文心
+Most resume tools focus on rewriting a single resume. Real job search work is messier: each role has different expectations, each resume version needs context, and interview preparation should be connected to the same job description and candidate background.
 
----
+OneJD OneResume treats a job application as a small knowledge workspace:
 
-## 界面布局
+- one job description
+- one or more tailored resume versions
+- interview guidance notes
+- job-specific question banks
+- mock interview sessions
+- review reports and exportable documents
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          一岗一历 · 求职 Agent                               │
-├──────────┬─────────────────────┬─────────────────────┬─────────────────────┤
-│  侧边栏  │  岗位 JD 面板        │  简历内容面板        │  求职 Agent 对话     │
-│          │  ─────────────────  │                     │                     │
-│ ▸ 岗位A  │  # 高级前端工程师    │  # 张三              │  🤖 我是一岗一历，   │
-│   📖面试指导  ## 岗位要求       │  ---                 │     你的求职助手     │
-│   └简历1 │  - React 3年以上     │  ## 工作经历         │  👤 帮我生成简历     │
-│   └简历2 │  [编辑]              │  字节跳动 2021-      │  🤖 好的，根据 JD…   │
-│ ▸ 岗位B  │  ═══════════════     │  [编辑] [导出▾]     │  选中后右键→面试指导 │
-│   📖面试指导  面试指导（可拖拽） │  [PDF预览]           │  _______________ ➤   │
-│   └简历1 │  ## 摘录 · ...       │                     │                     │
-│ [新建岗位]  │  [编辑] [清空]      │                     │                     │
-│ ⚙ 模型   │                     │                     │                     │
-└──────────┴─────────────────────┴─────────────────────┴─────────────────────┘
-```
+The goal is to make each application traceable, reusable, and easier to improve over time.
 
 ---
 
-## 系统架构
+## Features
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Browser / 浏览器                          │
-│                                                                 │
-│  ┌──────────┐  ┌──────────────────┐  ┌────────────┐  ┌───────┐  │
-│  │ Sidebar  │  │ JD + 面试指导列   │  │Resume Panel│  │ Chat  │  │
-│  │ 岗位/简历 │  │ JDPanel(上)       │  │  React     │  │ Panel │  │
-│  │ 面试指导  │  │ 可拖拽分隔条      │  └─────┬──────┘  └───┬───┘  │
-│  │ React    │  │ InterviewGuide(下)│        │              │      │
-│  └────┬─────┘  └────────┬─────────┘         │              │      │
-│       └─────────────────┴───────────────────┴──────────────┘      │
-│                    React + TypeScript + Tailwind + Zustand        │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │  REST API / SSE 流式
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     FastAPI Backend                             │
-│                                                                 │
-│  /api/jobs ──► JobsRouter      ──► SQLAlchemy ORM              │
-│  /api/resumes ► ResumesRouter  ──► SQLAlchemy ORM              │
-│  /api/chat ──► ChatRouter      ──► providers.py                │
-│  /api/interview-sim ► 题单抽样 + 流式 + 复盘报告                  │
-│  /api/export ► ExportRouter    ──► ReportLab PDF / python-docx  │
-│  /api/settings► SettingsRouter ──► ai_settings.json            │
-│                                                                 │
-│                 providers.py (统一抽象层)                        │
-│                 ┌──────────────────────────────────────────┐   │
-│                 │  Anthropic SDK   │  OpenAI-compat SDK    │   │
-│                 └──────────────────────────────────────────┘   │
-└──────────────────────────┬──────────────────────────────────────┘
-              ┌────────────┴──────────────┐
-              │                           │
-              ▼                           ▼
-┌─────────────────────┐     ┌─────────────────────────────────────┐
-│   SQLite 数据库      │     │         AI 提供商                    │
-│                     │     │                                     │
-│  jobs               │     │  ☁ Anthropic  claude-opus-4-6      │
-│  resumes            │     │  ☁ 阿里云     qwen-max / plus       │
-│  conversations      │     │  ☁ 智谱       glm-4-plus / flash    │
-│  (ai_settings.json) │     │  ☁ DeepSeek   deepseek-chat / r1    │
-│                     │     │  ☁ Moonshot   kimi-128k             │
-└─────────────────────┘     │  ☁ 百度       ernie-4.0            │
-                            └─────────────────────────────────────┘
-```
+- **Job description management**: Create, edit, delete, and track job descriptions with status and source links.
+- **AI resume tailoring**: Generate job-specific resumes from a job description and candidate background.
+- **Interview guide workspace**: Maintain Markdown interview notes for each job, including snippets collected from AI conversations.
+- **Mock interview flow**: Generate or regenerate job-specific question banks, sample questions by type, run mock interviews, and produce Markdown review reports.
+- **Multiple candidate background profiles**: Maintain multiple candidate profiles and switch between them when generating resumes or interview materials.
+- **Resume PDF parsing**: Upload a resume PDF and convert it into structured candidate-background Markdown through an LLM workflow.
+- **Conversational editing**: Use natural-language prompts to generate, refine, and revise application materials.
+- **PDF and Word export**: Preview output, adjust font size and margins, then export resumes as PDF or Word documents.
+- **File management**: Organize tailored resumes and interview guides under each job.
+- **Multi-provider LLM support**: Switch between Anthropic Claude and OpenAI-compatible providers such as Qwen, Zhipu GLM, DeepSeek, Moonshot Kimi, and Baidu ERNIE.
 
 ---
 
-## 核心数据流
+## Architecture
 
+```text
+Browser
+  |
+  | React + TypeScript + Tailwind CSS + Zustand
+  |
+  | REST API / Server-Sent Events
+  v
+FastAPI backend
+  |
+  | jobs, resumes, conversations, background profiles
+  v
+SQLite + SQLAlchemy
+  |
+  | provider abstraction
+  v
+Anthropic SDK / OpenAI-compatible SDKs
 ```
-用户输入消息
-     │
-     ▼
+
+The application is split into a TypeScript frontend and a Python FastAPI backend.
+
+### Frontend
+
+- React 18
+- TypeScript
+- Tailwind CSS
+- Vite
+- Zustand state management
+
+### Backend
+
+- Python
+- FastAPI
+- SQLite
+- SQLAlchemy ORM
+- Server-Sent Events for streaming AI responses
+- ReportLab for PDF export
+- python-docx for Word export
+
+---
+
+## Core Workflow
+
+```text
+User message
+  |
+  v
 ChatPanel.tsx
-     │ POST /api/chat/stream
-     │ { job_id, resume_id, messages[], user_background }
-     ▼
-ChatRouter (FastAPI)
-     │ 从 DB 取 Job.content + Resume.content
-     │ 拼接 System Prompt + JD上下文 + 简历上下文
-     ▼
+  |
+  | POST /api/chat/stream
+  | { job_id, resume_id, messages[], user_background }
+  v
+FastAPI ChatRouter
+  |
+  | Loads Job.content and Resume.content from the database
+  | Builds the system prompt with job, resume, and candidate context
+  v
 providers.stream_response()
-     │ 读取 ai_settings.json → 确定 provider + model + api_key
-     │
-     ├─ provider=anthropic → AsyncAnthropic.messages.stream()
-     └─ provider=其他     → AsyncOpenAI(base_url=...).chat.completions.create(stream=True)
-     │
-     ▼ Server-Sent Events (text/event-stream)
-     │ data: {"type":"text","content":"..."}  ← 逐 token 推送
-     │ data: {"type":"done"}
-     ▼
-ChatPanel.tsx (逐字渲染)
-     │
-     │ 检测 ===RESUME_START=== ... ===RESUME_END=== 标记
-     │
-     ├─ 无简历标记 → 仅展示对话内容
-     └─ 有简历标记 → PUT /api/resumes/{id}  更新 DB
-                         │
-                         ▼
-                   ResumePanel 实时刷新
+  |
+  | Reads ai_settings.json
+  | Selects provider, model, and API key
+  v
+LLM streaming response
+  |
+  v
+Server-Sent Events
+  |
+  v
+React UI renders tokens and updates resume content when structured markers are detected
 ```
 
 ---
 
-## Agent Prompt 说明
+## Supported AI Providers
 
-System Prompt 存放于：
+| Provider | Example models | Key source |
+| --- | --- | --- |
+| Anthropic Claude | `claude-opus-4-6` | `console.anthropic.com` |
+| Qwen | `qwen-plus`, `qwen-max` | Alibaba Cloud Model Studio |
+| Zhipu GLM | `glm-4-flash`, `glm-4-plus` | Zhipu AI platform |
+| DeepSeek | `deepseek-chat`, `deepseek-reasoner` | DeepSeek platform |
+| Moonshot Kimi | `moonshot-v1-128k` | Moonshot platform |
+| Baidu ERNIE | `ernie-4.0-turbo-8k` | Baidu AI Cloud |
 
-```
-backend/routers/chat.py
-└── SYSTEM_PROMPT  (第 13 行起)
-```
-
-每次对话时，后端动态将以下内容拼接后发送给模型：
-
-```
-[SYSTEM_PROMPT]          ← 角色定义、输出格式规范
----
-## 目标岗位信息          ← 当前选中岗位的 content 字段
-{job.content}
----
-## 当前简历内容           ← 当前选中简历的 content（可为空）
-{resume.content}
----
-## 用户补充的个人经历     ← 前端「我的背景」输入框内容（可选）
-{user_background}
-```
+The backend keeps provider integration behind a shared abstraction so the UI can switch models without changing the user workflow.
 
 ---
 
-## 技术栈
+## Quick Start
 
-- **后端**: Python + FastAPI + SQLite (SQLAlchemy ORM)
-- **前端**: React 18 + TypeScript + Tailwind CSS + Vite + Zustand
-- **AI 多模型**: `anthropic` SDK + `openai` SDK (OpenAI-compat)
-- **导出**: ReportLab (PDF)、python-docx (Word)，支持字体大小与页边距参数
-- **面试指导**: 前端 localStorage 按岗位存储 Markdown 文档
-
----
-
-## 支持的 AI 提供商
-
-| 提供商 | 推荐模型 | 获取 Key |
-|--------|----------|----------|
-| Anthropic Claude | claude-opus-4-6 | console.anthropic.com |
-| 通义千问 (Qwen) | qwen-plus / qwen-max | bailian.console.aliyun.com |
-| 智谱 GLM | glm-4-flash (免费) / glm-4-plus | open.bigmodel.cn |
-| DeepSeek | deepseek-chat / deepseek-reasoner | platform.deepseek.com |
-| Moonshot (Kimi) | moonshot-v1-128k | platform.moonshot.cn |
-| 百度文心 (ERNIE) | ernie-4.0-turbo-8k | console.bce.baidu.com |
-
----
-
-## 快速开始
-
-### 1. 安装依赖
+### 1. Install dependencies
 
 ```bash
-# 后端
-cd backend && pip install -r requirements.txt
+# Backend
+cd backend
+pip install -r requirements.txt
 
-# 前端
-cd frontend && npm install
+# Frontend
+cd ../frontend
+npm install
 ```
 
-### 2. 配置 API Key
+### 2. Configure API keys
 
-首次克隆仓库时，可将 `backend/ai_settings.json.example` 复制为 `backend/ai_settings.json` 再填写密钥；`ai_settings.json` 已加入 `.gitignore`，不会被提交到 Git。
-
-**方式一：通过 UI 设置（推荐）**
-启动后点击左下角模型名称，在弹窗中填写对应 API Key。
-
-**方式二：环境变量**
+Copy the example settings file:
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-export DASHSCOPE_API_KEY=sk-...       # 通义千问
-export ZHIPU_API_KEY=...              # 智谱
-export DEEPSEEK_API_KEY=sk-...        # DeepSeek
-export MOONSHOT_API_KEY=sk-...        # Kimi
-export QIANFAN_API_KEY=...            # 百度文心
+cp backend/ai_settings.json.example backend/ai_settings.json
 ```
 
-### 3. 启动
+Then add the API key for the provider you want to use.
 
-**重要：访问地址要和启动方式一致，否则会白屏。**
+You can also configure API keys through the application UI after starting the app.
 
-| 方式 | 命令 | 浏览器访问 |
-|------|------|------------|
-| 开发模式（前后端各一进程） | **`dev.bat`**（Windows 一键启动）或 `./dev.sh`（Linux/Mac）或 先 `cd backend && uvicorn main:app --port 8000`，再另开终端 `cd frontend && npm run dev` | **http://localhost:5173** |
-| 生产模式（仅后端，顺带构建前端） | `./start.sh`（Linux/Mac）或 **`start.bat`**（Windows） | **http://localhost:8000** |
+### 3. Start the development servers
 
-- **只启动了后端（uvicorn）时**：必须先生成前端再访问 8000。若未执行过 `npm run build`，请先运行 `start.bat` 或 `start.sh`（会先构建再起后端），然后访问 **http://localhost:8000**。
-- **若打开的是 5173 却白屏**：说明前端开发服务器未启动，请在本机再开一个终端执行 `cd frontend && npm run dev`，再访问 **http://localhost:5173**。
+From the repository root:
 
----
+```bash
+./dev.sh
+```
 
-## 使用方法
+On Windows:
 
-1. **新建岗位** — 点击左侧「新建岗位」，粘贴岗位 JD（支持上传图片/PDF/Word 解析）
-2. **填写背景** — 页面右上角「我的背景」：可新建/删除/重命名多份人物档案并切换；上传文件解析后先进入 **待创建档案预览**，确认「保存为新档案」后才会入库；预览期间发消息仍使用导入前的档案。**简历 PDF** 需配置 **通义千问 API Key**（扫描 PDF 走多模态）
-3. **生成简历** — 发送「帮我生成一份针对该 JD 的简历」，Agent 会更新右侧简历内容
-4. **优化迭代** — 继续对话要求修改、润色或突出亮点
-5. **面试辅导** — 发送「给我针对该岗位的面试技巧」等，在对话中选中文字右键「添加到面试指导中」可收藏到该岗位的面试指导
-6. **面试指导** — 左侧每个岗位下可展开「面试指导」，支持改名、删除；中间栏 JD 下方有可拖拽高度的面试指导面板，编辑 Markdown 或从对话中摘录
-7. **导出简历** — 简历面板「导出」→ 选择 Word 或 PDF → 在弹窗中预览并调整字体大小、页边距 → 确定后选择保存位置
+```bat
+dev.bat
+```
 
----
+The frontend should be available at:
 
-## API 接口
+```text
+http://localhost:5173
+```
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | /api/jobs | 获取所有岗位 |
-| POST | /api/jobs | 创建岗位 |
-| PUT | /api/jobs/{id} | 更新岗位 |
-| DELETE | /api/jobs/{id} | 删除岗位 |
-| GET | /api/resumes | 获取简历列表 |
-| POST | /api/resumes | 创建简历 |
-| PUT | /api/resumes/{id} | 更新简历 |
-| DELETE | /api/resumes/{id} | 删除简历 |
-| POST | /api/chat/stream | SSE 流式对话 |
-| GET | /api/chat/current-provider | 当前模型信息 |
-| GET/POST | /api/chat/conversations | 获取/保存对话历史 |
-| GET | /api/settings | 获取模型设置 |
-| PUT | /api/settings | 保存模型设置 |
-| DELETE | /api/settings/api-key/{provider} | 清除 API Key |
-| GET | /api/export/pdf/{id} | 导出 PDF（可选 ?font_size=10&margin_cm=2） |
-| GET | /api/export/pdf-preview/{id} | 内嵌预览 PDF（同上参数） |
-| GET | /api/export/word/{id} | 导出 Word（可选 ?font_size=11&margin_cm=2） |
-| GET | /api/background/profiles | 列出全部人物背景档案（空库时自动创建一条默认） |
-| POST | /api/background/profiles | 创建档案 `{ name, content }` |
-| PUT | /api/background/profiles/{id} | 更新档案 `name` / `content` |
-| DELETE | /api/background/profiles/{id} | 删除档案（至少保留一条） |
-| POST | /api/uploads/extract | 上传文件解析文本（OCR 等） |
-| POST | /api/uploads/parse-resume-background | 简历 PDF → 通义整理为候选人背景 Markdown（需通义 Key） |
-| POST | /api/uploads/parse-job | 上传文件解析岗位信息 |
+The backend should be available at:
+
+```text
+http://localhost:8000
+```
+
+### 4. Production-style backend startup
+
+```bash
+./start.sh
+```
+
+On Windows:
+
+```bat
+start.bat
+```
 
 ---
 
-## GitHub Pages（部署说明）
+## Usage
 
-宣传页源码位于 `docs/index.html`（样式 `docs/styles.css`）。若尚未启用：**Settings → Pages → Deploy from a branch → `main` / `/docs`**。
+1. Create a job entry and paste the job description.
+2. Add or select a candidate background profile.
+3. Ask the AI assistant to generate a tailored resume for the selected job.
+4. Review and edit the resume in the resume panel.
+5. Add useful conversation excerpts to the job-specific interview guide.
+6. Generate interview questions and run a mock interview.
+7. Export the final resume as PDF or Word.
 
-`docs/assets/` 含真实截图 `real-screenshot.png`、`real-question-bank-modal.png` 及示意 SVG，可按需替换。
+---
+
+## API Overview
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/jobs` | List all jobs |
+| `POST` | `/api/jobs` | Create a job |
+| `PUT` | `/api/jobs/{id}` | Update a job |
+| `DELETE` | `/api/jobs/{id}` | Delete a job |
+| `GET` | `/api/resumes` | List resumes |
+| `POST` | `/api/resumes` | Create a resume |
+| `PUT` | `/api/resumes/{id}` | Update a resume |
+| `DELETE` | `/api/resumes/{id}` | Delete a resume |
+| `POST` | `/api/chat/stream` | Stream an AI conversation response |
+| `GET` | `/api/chat/current-provider` | Get current model/provider settings |
+| `GET` / `POST` | `/api/chat/conversations` | Read or save conversation history |
+| `GET` | `/api/settings` | Read model settings |
+| `PUT` | `/api/settings` | Save model settings |
+| `DELETE` | `/api/settings/api-key/{provider}` | Remove a provider API key |
+| `GET` | `/api/export/pdf/{id}` | Export resume as PDF |
+| `GET` | `/api/export/pdf-preview/{id}` | Preview PDF rendering |
+| `GET` | `/api/export/word/{id}` | Export resume as Word |
+| `GET` | `/api/background/profiles` | List candidate background profiles |
+| `POST` | `/api/background/profiles` | Create a background profile |
+| `PUT` | `/api/background/profiles/{id}` | Update a background profile |
+| `DELETE` | `/api/background/profiles/{id}` | Delete a background profile |
+| `POST` | `/api/uploads/extract` | Extract text from an uploaded file |
+| `POST` | `/api/uploads/parse-resume-background` | Parse a resume PDF into candidate-background Markdown |
+| `POST` | `/api/uploads/parse-job` | Parse job information from an uploaded file |
+
+---
+
+## Security Notes
+
+This project handles user-provided job descriptions, resume text, uploaded files, LLM prompts, generated documents, and local API-key configuration. Current security-sensitive areas include:
+
+- file upload and parsing
+- prompt-injection surfaces in JD/resume text
+- generated PDF and Word output
+- local API-key storage
+- dependency and provider SDK updates
+
+Contributions that improve validation, dependency hygiene, prompt safety, secret handling, and test coverage are especially valuable.
+
+---
+
+## GitHub Pages
+
+The static project showcase is served from:
+
+```text
+docs/index.html
+docs/styles.css
+docs/assets/
+```
+
+If GitHub Pages is not enabled yet, use:
+
+```text
+Settings -> Pages -> Deploy from a branch -> main / docs
+```
+
+---
+
+## Roadmap
+
+- Add an English UI mode and documentation set.
+- Improve automated tests for backend routes and provider switching.
+- Add stricter validation for uploads and generated exports.
+- Add contribution guidelines and issue templates.
+- Add a public license file.
+- Improve GitHub Pages documentation with architecture and demo screenshots.
+
+---
+
+## Contributing
+
+Issues and pull requests are welcome. Useful contribution areas include:
+
+- improving the resume and interview workflows
+- adding tests for FastAPI routes
+- improving security and input validation
+- expanding provider support
+- improving documentation and setup instructions
+- making the UI more accessible
+
+---
+
+## License
+
+This repository does not currently include a license file. If you plan to accept external contributions or present it as an open-source project, add an OSI-approved license such as MIT or Apache-2.0.
