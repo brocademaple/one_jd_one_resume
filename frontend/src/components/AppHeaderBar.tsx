@@ -20,7 +20,7 @@ export interface AppHeaderBarProps {
 
 function toggleIconClass(collapsed: boolean) {
   return [
-    'p-2 rounded-lg border transition-colors flex-shrink-0',
+    'p-1.5 rounded-md border transition-colors flex-shrink-0',
     collapsed
       ? 'bg-primary-50 border-primary-200 text-primary-700 shadow-sm'
       : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300',
@@ -34,7 +34,7 @@ export function AppHeaderBar({ bg, onOpenBackground, columnToggles }: AppHeaderB
   const label = getBackgroundBarLabel(bg);
 
   return (
-    <header className="flex-shrink-0 flex items-center gap-3 px-3 sm:px-4 py-2 border-b border-gray-200 bg-white shadow-sm z-20">
+    <header className="flex-shrink-0 flex items-center gap-2 px-2 sm:px-3 py-1 border-b border-gray-200 bg-white z-20">
       {columnToggles ? (
         <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0" aria-label="主区列显示">
           <button
@@ -45,7 +45,7 @@ export function AppHeaderBar({ bg, onOpenBackground, columnToggles }: AppHeaderB
             aria-pressed={columnToggles.jdCollapsed}
             onClick={columnToggles.onToggleJd}
           >
-            <PanelLeft size={18} strokeWidth={2} />
+            <PanelLeft size={16} strokeWidth={2} />
           </button>
           <button
             type="button"
@@ -55,7 +55,7 @@ export function AppHeaderBar({ bg, onOpenBackground, columnToggles }: AppHeaderB
             aria-pressed={columnToggles.resumeCollapsed}
             onClick={columnToggles.onToggleResume}
           >
-            <FileText size={18} strokeWidth={2} />
+            <FileText size={16} strokeWidth={2} />
           </button>
           <button
             type="button"
@@ -73,21 +73,21 @@ export function AppHeaderBar({ bg, onOpenBackground, columnToggles }: AppHeaderB
             aria-pressed={columnToggles.chatCollapsed}
             onClick={columnToggles.onToggleChat}
           >
-            <MessageSquare size={18} strokeWidth={2} />
+            <MessageSquare size={16} strokeWidth={2} />
           </button>
         </div>
       ) : null}
 
-      <div className="flex items-center gap-3 min-w-0 ml-auto">
+      <div className="flex items-center gap-2 min-w-0 ml-auto">
         <div
-          className="flex items-center gap-2 min-w-0 max-w-[min(280px,45vw)] rounded-lg px-2.5 py-1 bg-gray-50 border border-gray-100"
+          className="flex items-center gap-1.5 min-w-0 max-w-[min(240px,45vw)] rounded-md px-2 py-0.5 bg-gray-50 border border-gray-100"
           title={`当前对话将使用档案「${label}」中的正文`}
         >
-          <UserCircle size={18} className="flex-shrink-0 text-primary-600" />
+          <UserCircle size={15} className="flex-shrink-0 text-primary-600" />
           <div className="min-w-0 text-right">
-            <div className="text-[10px] leading-tight text-gray-500 uppercase tracking-wide">人物背景</div>
+            <div className="text-[9px] leading-tight text-gray-500 uppercase tracking-wide">人物背景</div>
             <div
-              className="text-sm font-medium truncate text-gray-900"
+              className="text-xs font-medium truncate text-gray-900"
             >
               {label}
             </div>
@@ -95,7 +95,7 @@ export function AppHeaderBar({ bg, onOpenBackground, columnToggles }: AppHeaderB
         </div>
         <button
           type="button"
-          className="text-sm px-3 py-1.5 rounded-lg bg-primary-600 text-white hover:bg-primary-700 shadow-sm flex-shrink-0"
+          className="text-xs px-2.5 py-1 rounded-md bg-primary-600 text-white hover:bg-primary-700 flex-shrink-0"
           onClick={onOpenBackground}
         >
           我的背景
