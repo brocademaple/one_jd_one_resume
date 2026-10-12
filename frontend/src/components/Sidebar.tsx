@@ -169,10 +169,10 @@ export function Sidebar(props: SidebarProps) {
   return (
     <>
       <div className="flex flex-col h-full bg-gray-900 text-gray-100 w-full min-w-0 flex-shrink-0">
-        <div className="px-4 py-4 border-b border-gray-700">
-          <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider truncate" title="一岗一历 · OneJD OneResume">一岗一历 · OneJD OneResume</span>
-          <button onClick={() => setShowNewJobModal(true)} className="mt-2 w-full flex items-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg text-sm font-medium transition-colors">
-            <Plus size={16} />新建岗位
+        <div className="px-3 py-2 border-b border-gray-700">
+          <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate" title="一岗一历 · OneJD OneResume">一岗一历 · OneJD OneResume</span>
+          <button onClick={() => setShowNewJobModal(true)} className="mt-1.5 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 bg-primary-600 hover:bg-primary-700 rounded-md text-xs font-medium transition-colors">
+            <Plus size={14} />新建岗位
           </button>
         </div>
 
@@ -183,12 +183,12 @@ export function Sidebar(props: SidebarProps) {
             const statusCfg = getStatusConfig(job.status);
             const StatusIcon = statusCfg.icon;
             return <div key={job.id}>
-              <div className={`group flex items-center gap-1 px-2 py-2 cursor-pointer hover:bg-gray-800 transition-colors ${selectedJobId === job.id ? 'bg-gray-800' : ''}`} onClick={() => { onSelectJob(job); toggleJob(job.id); }}>
+              <div className={`group flex items-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-gray-800 transition-colors ${selectedJobId === job.id ? 'bg-gray-800' : ''}`} onClick={() => { onSelectJob(job); toggleJob(job.id); }}>
                 <button className="flex-shrink-0 p-0.5 hover:bg-gray-700 rounded" onClick={e => { e.stopPropagation(); toggleJob(job.id); }}>{isExpanded ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}</button>
                 <Briefcase size={14} className="flex-shrink-0 text-primary-400" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-medium truncate">{job.title}</p>
+                    <p className="text-xs font-medium truncate">{job.title}</p>
                     <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${statusCfg.color} ${statusCfg.bgColor}`}>
                       <StatusIcon size={10} />
                       {statusCfg.label}
@@ -199,7 +199,7 @@ export function Sidebar(props: SidebarProps) {
                 <button className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 hover:bg-red-900 hover:text-red-400 rounded transition-all" onClick={async e => { e.stopPropagation(); if (confirm('确认删除该岗位及所有相关简历？')) { await deleteJob(job.id); onJobDeleted(job.id); } }}><Trash2 size={12} /></button>
               </div>
               {isExpanded && <div className="ml-4 border-l border-gray-700 pl-2">
-                <div className={`flex items-center gap-1.5 px-2 py-1.5 mb-1 rounded-lg ${statusCfg.bgColor} ${statusCfg.color}`}>
+                <div className={`flex items-center gap-1 px-2 py-1 mb-0.5 rounded-md ${statusCfg.bgColor} ${statusCfg.color}`}>
                   <StatusIcon size={12} />
                   <span className="text-xs font-medium">状态：{statusCfg.label}</span>
                 </div>
@@ -282,7 +282,7 @@ export function Sidebar(props: SidebarProps) {
           })}
         </div>
 
-        <div className="px-3 py-3 border-t border-gray-700 flex items-center justify-between gap-2">
+        <div className="px-2 py-2 border-t border-gray-700 flex items-center justify-between gap-2">
           <button onClick={onOpenSettings} className="flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-700 transition-colors text-left" title="AI 模型设置">
             <Settings size={13} className="text-gray-400 flex-shrink-0" />
             <div className="min-w-0 flex-1">{currentProvider ? <><p className="text-xs text-gray-300 truncate font-medium">{currentProvider.provider_name}</p><p className="text-xs text-gray-500 truncate">{currentProvider.model}</p></> : <p className="text-xs text-gray-500">点击配置模型</p>}</div>

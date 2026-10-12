@@ -68,7 +68,7 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
       <div className="flex flex-col h-full bg-white border-r border-gray-200">
         <div className="panel-header">
           <span className="panel-title">
-            <Briefcase size={16} className="text-primary-500" />
+            <Briefcase size={14} className="text-primary-500" />
             岗位信息
           </span>
         </div>
@@ -90,7 +90,7 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
       {/* Header */}
       <div className="panel-header">
         <div className="panel-title flex-1 min-w-0">
-          <Briefcase size={16} className="text-primary-500 flex-shrink-0" />
+          <Briefcase size={14} className="text-primary-500 flex-shrink-0" />
           {editing ? (
             <div className="flex-1 flex flex-wrap gap-2 items-center min-w-0">
               <input
@@ -130,14 +130,14 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
           {editing ? (
             <>
               <button
-                className="p-1.5 rounded-lg bg-primary-600 text-white hover:bg-primary-700 text-xs px-3 disabled:opacity-50"
+                className="p-1 rounded-md bg-primary-600 text-white hover:bg-primary-700 text-xs px-2 disabled:opacity-50"
                 onClick={handleSave}
                 disabled={saving}
               >
                 {saving ? '保存中' : <><Save size={13} className="inline mr-1" />保存</>}
               </button>
               <button
-                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
+                className="p-1 rounded-md text-gray-500 hover:bg-gray-100"
                 onClick={() => setEditing(false)}
               >
                 <X size={14} />
@@ -145,7 +145,7 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
             </>
           ) : (
             <button
-              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-600"
+              className="p-1 rounded-md text-gray-500 hover:bg-gray-100 hover:text-primary-600"
               onClick={startEdit}
               title="编辑岗位信息"
             >
@@ -159,7 +159,7 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
       <div className="flex-1 overflow-y-auto min-h-0">
         {editing ? (
           <div className="flex flex-col h-full">
-            <div className="flex-shrink-0 p-4 space-y-3 border-b border-gray-100">
+            <div className="flex-shrink-0 p-3 space-y-2 border-b border-gray-100">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">岗位链接（选填，可创建后补充）</label>
                 <input
@@ -192,7 +192,7 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
               </div>
             </div>
             <textarea
-              className="flex-1 w-full p-4 text-sm text-gray-700 outline-none resize-none font-mono leading-relaxed min-h-0"
+              className="flex-1 w-full p-3 text-[13px] text-gray-700 outline-none resize-none font-mono leading-snug min-h-0"
               value={editContent}
               onChange={e => setEditContent(e.target.value)}
               placeholder="岗位描述内容..."
@@ -201,27 +201,27 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
         ) : (
           <>
             {(job.job_url || job.salary) && (
-              <div className="mx-4 mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+              <div className="mx-3 mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-600">
                 {job.job_url && (
                   <a href={job.job_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary-600 hover:underline">
-                    <Link2 size={14} /> 岗位链接
+                    <Link2 size={12} /> 岗位链接
                   </a>
                 )}
                 {job.salary && (
                   <span className="inline-flex items-center gap-1">
-                    <DollarSign size={14} /> {job.salary}
+                    <DollarSign size={12} /> {job.salary}
                   </span>
                 )}
               </div>
             )}
-            <div className="mx-4 mt-3 text-xs text-gray-600">
+            <div className="mx-3 mt-1.5 text-[11px] text-gray-600">
               胜任力模型：<span className="font-medium text-gray-800">{job.competency_profile || 'default'}</span>
             </div>
-            <div className={`mx-4 mt-3 flex items-center gap-2 px-3 py-2 rounded-lg ${statusCfg.bgColorLight} ${statusCfg.colorLight}`}>
-              <StatusIcon size={16} />
-              <span className="text-sm font-medium">当前状态：{statusCfg.label}</span>
+            <div className={`mx-3 mt-1.5 flex items-center gap-1.5 px-2 py-1 rounded-md ${statusCfg.bgColorLight} ${statusCfg.colorLight}`}>
+              <StatusIcon size={12} />
+              <span className="text-xs font-medium">当前状态：{statusCfg.label}</span>
             </div>
-            <div className="p-4 markdown-content">
+            <div className="px-3 py-2 markdown-content">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {job.content}
               </ReactMarkdown>

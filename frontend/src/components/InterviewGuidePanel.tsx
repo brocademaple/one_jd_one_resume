@@ -94,7 +94,7 @@ export function InterviewGuidePanel({
       <div className="flex flex-col h-full bg-amber-50/50 border-t border-amber-100">
         <div className="panel-header flex-shrink-0">
           <span className="panel-title">
-            <BookOpen size={16} className="text-amber-500" />
+            <BookOpen size={14} className="text-amber-500" />
             面试指导
           </span>
         </div>
@@ -126,52 +126,48 @@ export function InterviewGuidePanel({
         />
       )}
 
-      <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200 bg-white flex flex-col items-start gap-2">
-        <div className="panel-title min-w-0 !flex !flex-col !items-start gap-0.5">
-          <div className="flex items-center gap-1.5 min-w-0 w-full">
-            <BookOpen size={16} className="text-amber-500 flex-shrink-0" />
+      <div className="panel-header flex-wrap sm:flex-nowrap items-start sm:items-center">
+        <div className="flex-1 min-w-0">
+          <div className="panel-title">
+            <BookOpen size={14} className="text-amber-500 flex-shrink-0" />
             <span className="truncate">{title || '面试指导'}</span>
           </div>
-          <span className="text-[10px] text-amber-800/70 font-normal pl-5 truncate w-full" title="面试准备中心：题库生成/预览/编辑/类型选择/开始模拟">
-            专属题库 {jobBankCount} 题 · 点击「面试准备」统一管理并开始模拟
-          </span>
+          <p
+            className="text-[10px] leading-tight text-amber-800/70 font-normal pl-5 truncate"
+            title="面试准备中心：题库生成/预览/编辑/类型选择/开始模拟"
+          >
+            题库 {jobBankCount} 题 · 「面试准备」可模拟
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2 w-full">
+        <div className="flex flex-wrap gap-1 flex-shrink-0">
           <button
             type="button"
-            className="px-3 py-1.5 rounded-lg text-sm text-amber-800 hover:bg-amber-100 disabled:opacity-50 flex items-center gap-2 min-w-[120px] justify-center"
-            title="打开面试准备中心：题库生成/预览/编辑/类型选择/开始模拟"
+            className="px-2 py-1 rounded-md text-xs text-amber-800 hover:bg-amber-100 disabled:opacity-50 flex items-center gap-1"
+            title="打开面试准备中心"
             onClick={() => setQuestionBankOpen(true)}
           >
-            <Sparkles size={14} className="opacity-70" />
+            <Sparkles size={12} className="opacity-70" />
             面试准备
           </button>
           {editing ? (
             <>
               <button
                 type="button"
-                className="px-3 py-1.5 rounded-lg bg-primary-600 text-white hover:bg-primary-700 text-sm disabled:opacity-50 flex items-center gap-2 min-w-[120px] justify-center"
+                className="px-2 py-1 rounded-md bg-primary-600 text-white hover:bg-primary-700 text-xs disabled:opacity-50 flex items-center gap-1"
                 onClick={handleSave}
                 disabled={saving}
               >
-                {saving ? (
-                  '保存中'
-                ) : (
-                  <>
-                    <Save size={14} className="opacity-90" />
-                    保存
-                  </>
-                )}
+                {saving ? '保存中' : <><Save size={12} />保存</>}
               </button>
               <button
                 type="button"
-                className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 flex items-center gap-2 min-w-[120px] justify-center"
+                className="px-2 py-1 rounded-md text-xs text-gray-600 hover:bg-gray-100 flex items-center gap-1"
                 onClick={() => {
                   setEditing(false);
                   setEditContent(content);
                 }}
               >
-                <X size={14} className="opacity-70" />
+                <X size={12} />
                 取消
               </button>
             </>
@@ -179,21 +175,21 @@ export function InterviewGuidePanel({
             <>
               <button
                 type="button"
-                className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-amber-600 flex items-center gap-2 min-w-[120px] justify-center"
+                className="px-2 py-1 rounded-md text-xs text-gray-600 hover:bg-gray-100 hover:text-amber-600 flex items-center gap-1"
                 onClick={startEdit}
                 title="编辑面试指导"
               >
-                <Edit3 size={14} className="opacity-70" />
+                <Edit3 size={12} />
                 编辑
               </button>
               {content.trim() && (
                 <button
                   type="button"
-                  className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-red-500 flex items-center gap-2 min-w-[120px] justify-center"
+                  className="px-2 py-1 rounded-md text-xs text-gray-600 hover:bg-gray-100 hover:text-red-500 flex items-center gap-1"
                   onClick={handleClear}
                   title="清空内容"
                 >
-                  <Trash2 size={14} className="opacity-70" />
+                  <Trash2 size={12} />
                   清空
                 </button>
               )}
@@ -204,17 +200,17 @@ export function InterviewGuidePanel({
       <div className="flex-1 overflow-y-auto min-h-0">
         {editing ? (
           <textarea
-            className="w-full h-full p-4 text-sm text-gray-700 outline-none resize-none font-mono leading-relaxed"
+            className="w-full h-full p-3 text-[13px] text-gray-700 outline-none resize-none font-mono leading-snug"
             value={editContent}
             onChange={e => setEditContent(e.target.value)}
             placeholder="在此编辑 Markdown；从 Agent 对话右键或书签图标追加的内容会尽量保留 Markdown 结构..."
           />
         ) : (
-          <div className="p-4 markdown-content bg-white/80 min-h-full">
+          <div className="px-3 py-2 markdown-content bg-white/80 min-h-full">
             {content ? (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
             ) : (
-              <p className="text-gray-500 text-sm">暂无内容。在助手消息中选中文本后右键「添加到面试指导」，或悬停助手气泡点击书签图标，将按 Markdown 写入此处。</p>
+              <p className="text-gray-500 text-xs leading-snug">暂无内容。在助手消息中选中文本后右键「添加到面试指导」，或悬停助手气泡点击书签图标。</p>
             )}
           </div>
         )}
