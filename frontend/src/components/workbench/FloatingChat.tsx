@@ -1,4 +1,4 @@
-import { MessageCircle, X, Minus } from 'lucide-react';
+import { MessageCircle, Minus } from 'lucide-react';
 import { ChatPanel } from '../ChatPanel';
 import type { Resume, CurrentProvider } from '../../types';
 import type { BackgroundProfilesController } from '../../hooks/useBackgroundProfiles';
@@ -35,31 +35,18 @@ export function FloatingChat(props: FloatingChatProps) {
 
   return (
     <div
-      className="fixed bottom-4 right-4 z-40 w-[min(360px,calc(100vw-2rem))] h-[min(420px,calc(100vh-6rem))] ojor-glass rounded-2xl overflow-hidden flex flex-col shadow-xl"
+      className="fixed bottom-4 right-4 z-40 w-[min(360px,calc(100vw-2rem))] h-[min(440px,calc(100vh-6rem))] ojor-glass rounded-2xl overflow-hidden flex flex-col shadow-xl"
     >
-      <div className="flex-shrink-0 flex items-center justify-between px-3 py-2 border-b border-white/50 bg-white/30">
-        <span className="text-[12px] font-semibold text-slate-900">对照助手</span>
-        <div className="flex gap-1">
-          <button
-            type="button"
-            className="p-1 rounded-md hover:bg-white/50 text-slate-600"
-            aria-label="最小化"
-            onClick={() => setChatExpanded(false)}
-          >
-            <Minus size={16} />
-          </button>
-          <button
-            type="button"
-            className="p-1 rounded-md hover:bg-white/50 text-slate-600"
-            aria-label="关闭"
-            onClick={() => setChatExpanded(false)}
-          >
-            <X size={16} />
-          </button>
-        </div>
-      </div>
-      <div className="flex-1 min-h-0 [&_.panel-header]:hidden [&>div]:h-full">
-        <ChatPanel {...props} />
+      <button
+        type="button"
+        className="absolute top-1.5 right-1.5 z-10 p-1 rounded-md bg-white/70 hover:bg-white text-slate-600 shadow-sm"
+        aria-label="最小化对话"
+        onClick={() => setChatExpanded(false)}
+      >
+        <Minus size={16} />
+      </button>
+      <div className="flex-1 min-h-0 [&>div]:h-full">
+        <ChatPanel {...props} assistantTitle="对照助手" />
       </div>
     </div>
   );

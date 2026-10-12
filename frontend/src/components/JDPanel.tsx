@@ -9,9 +9,24 @@ import { getStatusConfig } from '../utils/jobStatus';
 interface JDPanelProps {
   job: Job | null;
   onJobUpdated: (job: Job) => void;
+  /** 能力对照选中项的证据/JD 高光句 */
+  highlightQuote?: string | null;
+  className?: string;
 }
 
-export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
+function renderContentWithHighlight(content: string, quote: string | null | undefined) {
+  const q = quote?.trim();
+  if (!q || q.length < 4) return content;
+  const idx = content.indexOf(q.slice(0, Math.min(16, q.length)));
+  if (idx < 0) return content;
+  const len = Math.min(q.length + 24, content.length - idx);
+  const before = content.slice(0, idx);
+  const mid = content.slice(idx, idx + len);
+  const after = content.slice(idx + len);
+  return `${before}\n\n<!--HIGHLIGHT_START-->${mid}<!--HIGHLIGHT_END-->\n\n${after}`;
+}
+
+export function JDPanel({ job, onJobUpdated, highlightQuote, className }: JDPanelProps) {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editCompany, setEditCompany] = useState('');
@@ -65,7 +80,7 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
 
   if (!job) {
     return (
-      <div className="flex flex-col h-full bg-white border-r border-gray-200">
+      <div className={`flex flex-col h-full bg-white border-r border-gray-200 ${className ?? ''}`}>
         <div className="panel-header">
           <span className="panel-title">
             <Briefcase size={14} className="text-primary-500" />
@@ -85,8 +100,13 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
   const statusCfg = getStatusConfig(editing ? editStatus : job.status);
   const StatusIcon = statusCfg.icon;
 
+  const displayContent =
+    !editing && highlightQuote
+      ? renderContentWithHighlight(job.content, highlightQuote)
+      : job.content;
+
   return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
+    <div className={`flex flex-col h-full bg-white/80 border-r border-gray-200/80 rounded-2xl overflow-hidden ${className ?? ''}`}>
       {/* Header */}
       <div className="panel-header">
         <div className="panel-title flex-1 min-w-0">
@@ -221,9 +241,31 @@ export function JDPanel({ job, onJobUpdated }: JDPanelProps) {
               <StatusIcon size={12} />
               <span className="text-xs font-medium">当前状态：{statusCfg.label}</span>
             </div>
-            <div className="px-3 py-2 markdown-content">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {job.content}
+            <div className="px-3 py-2 markdown-content text-[13px]">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ children }) => {
+                    const text = String(children);
+                    if (text.includes('<!--HIGHLIGHT_START-->')) {
+                      const parts = text.split(/<!--HIGHLIGHT_START-->|<!--HIGHLIGHT_END-->/);
+                      return (
+                        <p className="mb-1.5 leading-snug text-gray-700">
+                          {parts[0]}
+                          {parts[1] ? (
+                            <mark className="bg-primary-500/12 border-l-[3px] border-primary-600 pl-2 rounded-r-md not-italic">
+                              {parts[1]}
+                            </mark>
+                          ) : null}
+                          {parts[2]}
+                        </p>
+                      );
+                    }
+                    return <p className="mb-1.5 leading-snug text-gray-700">{children}</p>;
+                  },
+                }}
+              >
+                {displayContent}
               </ReactMarkdown>
             </div>
           </>

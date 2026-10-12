@@ -16,16 +16,18 @@ export function getAnalysisStatusLabel(status: JobAnalysisStatus): string {
   return ANALYSIS_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? '已收录';
 }
 
-/** 根据岗位与简历推断分析进度（无后端字段时的展示层逻辑） */
-export function inferJobAnalysisStatus(job: Job, resumesForJob: Resume[]): JobAnalysisStatus {
+export function inferJobAnalysisStatus(
+  job: Job,
+  resumesForJob: Resume[],
+  hasScorecard = false,
+  hasGaps = false,
+): JobAnalysisStatus {
   const contentLen = (job.content || '').trim().length;
-  if (contentLen < 80) return 'collected';
-  const hasResume = resumesForJob.length > 0;
-  if (!hasResume) return 'decomposed';
-  const idMod = job.id % 3;
-  if (idMod === 0) return 'evidence_gap';
-  if (idMod === 1) return 'compared';
-  return 'evidence_gap';
+  if (contentLen < 40) return 'collected';
+  if (!resumesForJob.length) return 'decomposed';
+  if (!hasScorecard) return 'decomposed';
+  if (hasGaps) return 'evidence_gap';
+  return 'compared';
 }
 
 export function analysisStatusChipClass(status: JobAnalysisStatus): string {

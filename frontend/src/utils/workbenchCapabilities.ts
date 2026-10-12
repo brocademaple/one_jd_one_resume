@@ -1,79 +1,120 @@
-import type { Job } from '../types';
+import type { EvaluationScorecardApiResponse } from '../api';
 
 export type CapabilityMatchState = 'done' | 'partial' | 'gap';
 
 export interface WorkbenchCapability {
   id: string;
-  label: string;
+  /** 雷达轴 1–6（由 0–100 分换算） */
   score: number;
+  /** 原始百分制分数 */
+  scorePercent: number;
+  label: string;
+  dimensionName: string;
   matchState: CapabilityMatchState;
-  /** 用于在 JD 正文中高亮的子串（取首条命中） */
   highlightSnippet: string;
   evidenceHint?: string;
+  suggestion?: string;
+  summary?: string;
 }
 
-const WIREframe_FALLBACK: WorkbenchCapability[] = [
-  { id: 'c1', label: '用户增长', score: 5, matchState: 'done', highlightSnippet: '提升聊天活跃、关系沉淀' },
-  { id: 'c2', label: '社交产品', score: 4, matchState: 'done', highlightSnippet: 'IM与社交产品功能演进' },
-  { id: 'c3', label: '跨端协作', score: 3, matchState: 'gap', highlightSnippet: '协同全球算法、研发、设计和运营团队', evidenceHint: '跨端（iOS/Android）协作复盘' },
-  { id: 'c4', label: 'AI 场景设计', score: 4, matchState: 'partial', highlightSnippet: '驱动AI在社交场景的系统化落地', evidenceHint: 'AI 推荐场景落地案例' },
-  { id: 'c5', label: '数据驱动', score: 5, matchState: 'done', highlightSnippet: '有数据敏感和判断力' },
-  { id: 'c6', label: '商业化意识', score: 3, matchState: 'partial', highlightSnippet: '商业化与变现设计' },
-];
-
-function shortenLabel(name: string, max = 8): string {
-  const t = name.trim();
-  if (t.length <= max) return t;
-  return t.slice(0, max - 1) + '…';
+export function scorePercentToRadarLevel(scorePercent: number): number {
+  if (scorePercent <= 0) return 0;
+  return Math.max(1, Math.min(6, Math.round((scorePercent / 100) * 6)));
 }
 
-function findSnippet(content: string, keywords: string[]): string {
-  const lower = content.toLowerCase();
-  for (const kw of keywords) {
-    const idx = lower.indexOf(kw.toLowerCase());
-    if (idx >= 0) {
-      const start = Math.max(0, idx - 8);
-      const end = Math.min(content.length, idx + kw.length + 24);
-      return content.slice(start, end).replace(/\s+/g, ' ').trim();
-    }
-  }
-  const line = content.split('\n').find((l) => l.trim().length > 12);
-  return line?.trim().slice(0, 40) ?? '岗位职责与任职要求';
+function normalizeMatchState(scorePercent: number, gap?: string | null): CapabilityMatchState {
+  if (gap?.trim()) return 'gap';
+  if (scorePercent >= 75) return 'done';
+  if (scorePercent >= 50) return 'partial';
+  return 'gap';
 }
 
-export function buildCapabilitiesFromDimensions(
-  job: Job,
+function findScorecardItem(
+  items: EvaluationScorecardApiResponse['items'],
+  dimensionName: string,
+) {
+  const exact = items.find((it) => it.competency === dimensionName);
+  if (exact) return exact;
+  return items.find(
+    (it) =>
+      it.competency.includes(dimensionName) ||
+      dimensionName.includes(it.competency) ||
+      dimensionName.split(/[/、]/).some((p) => p && it.competency.includes(p.trim())),
+  );
+}
+
+function pickHighlightQuote(
+  item: EvaluationScorecardApiResponse['items'][number] | undefined,
+  jobContent: string,
+  dimensionName: string,
+): string {
+  const fromEvidence = item?.evidence?.find((e) => e.quote?.trim())?.quote?.trim();
+  if (fromEvidence) return fromEvidence.slice(0, 120);
+  const kw = dimensionName.split(/[/、]/)[0]?.trim() || dimensionName;
+  const idx = jobContent.indexOf(kw);
+  if (idx >= 0) return jobContent.slice(idx, idx + Math.min(80, jobContent.length - idx)).trim();
+  return item?.summary?.slice(0, 80) || '';
+}
+
+/** 按胜任力模型全量维度对齐评分卡（不截断维度数） */
+export function buildCapabilitiesFromScorecard(
   dimensionNames: string[],
+  scorecard: EvaluationScorecardApiResponse,
+  jobContent: string,
 ): WorkbenchCapability[] {
-  const content = job.content || '';
-  const picked = dimensionNames.slice(0, 6);
-  if (picked.length < 6) {
-    while (picked.length < 6 && WIREframe_FALLBACK[picked.length]) {
-      picked.push(WIREframe_FALLBACK[picked.length].label);
-    }
-  }
-  return picked.slice(0, 6).map((name, i) => {
-    const seed = (job.id + i * 7) % 5;
-    const score = Math.min(6, Math.max(1, 2 + seed));
-    const matchState: CapabilityMatchState =
-      seed <= 1 ? 'gap' : seed === 2 ? 'partial' : 'done';
-    const kw = name.split(/[/、与]/)[0]?.trim() || name;
+  return dimensionNames.map((name, i) => {
+    const item = findScorecardItem(scorecard.items, name);
+    const scorePercent = item?.score ?? 0;
+    const matchState = normalizeMatchState(scorePercent, item?.gap);
+    const highlightSnippet = pickHighlightQuote(item, jobContent, name);
+    const evidenceHint = item?.gap?.trim() || item?.suggestion?.trim() || undefined;
     return {
       id: `dim-${i}`,
-      label: shortenLabel(name, 10),
-      score,
+      label: name.length > 12 ? `${name.slice(0, 11)}…` : name,
+      dimensionName: name,
+      score: scorePercentToRadarLevel(scorePercent),
+      scorePercent,
       matchState,
-      highlightSnippet: findSnippet(content, [kw, name.slice(0, 4)]),
-      evidenceHint: matchState !== 'done' ? `补充「${shortenLabel(name, 12)}」相关案例` : undefined,
+      highlightSnippet,
+      evidenceHint,
+      suggestion: item?.suggestion?.trim() || undefined,
+      summary: item?.summary?.trim() || undefined,
     };
   });
 }
 
-export function defaultCapabilitiesForJob(job: Job | null): WorkbenchCapability[] {
-  if (!job) return WIREframe_FALLBACK;
-  return buildCapabilitiesFromDimensions(job, WIREframe_FALLBACK.map((c) => c.label));
+export function gapsFromCapabilities(caps: WorkbenchCapability[]): string[] {
+  const out: string[] = [];
+  for (const c of caps) {
+    if (c.evidenceHint) out.push(c.evidenceHint);
+    else if (c.matchState !== 'done' && c.suggestion) out.push(c.suggestion);
+    else if (c.matchState === 'gap' && c.summary) out.push(`${c.label}：${c.summary}`);
+  }
+  return [...new Set(out)];
 }
 
-export function gapsFromCapabilities(caps: WorkbenchCapability[]): string[] {
-  return caps.filter((c) => c.matchState !== 'done' && c.evidenceHint).map((c) => c.evidenceHint!);
+export function getModelDimensions(
+  models: Record<string, string[]>,
+  profile: string | undefined,
+  jobTitle: string,
+): string[] {
+  const p = (profile || 'default').trim();
+  if (models[p]?.length) return models[p];
+  const title = (jobTitle || '').toLowerCase();
+  if (title.includes('产品') || title.includes('product') || title.includes('pm')) {
+    return models.product ?? models.default ?? [];
+  }
+  if (
+    title.includes('开发') ||
+    title.includes('工程') ||
+    title.includes('engineer') ||
+    title.includes('前端') ||
+    title.includes('后端')
+  ) {
+    return models.engineering ?? models.default ?? [];
+  }
+  if (title.includes('运营') || title.includes('operation')) {
+    return models.operations ?? models.default ?? [];
+  }
+  return models.default ?? [];
 }

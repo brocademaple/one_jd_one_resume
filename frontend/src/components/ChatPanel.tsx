@@ -27,6 +27,8 @@ interface ChatPanelProps {
   currentProvider?: CurrentProvider | null;
   onOpenSettings?: () => void;
   bg: BackgroundProfilesController;
+  /** 浮层模式标题 */
+  assistantTitle?: string;
 }
 
 const WELCOME_MESSAGE: Message = {
@@ -62,7 +64,7 @@ function readQuickTipsExpanded(): boolean {
   }
 }
 
-export function ChatPanel({ jobId, jobTitle, jobCompany, resumeId, onResumeCreated, onResumeUpdated, onInterviewNoteAdded, onOpenSettings, bg }: ChatPanelProps) {
+export function ChatPanel({ jobId, jobTitle, jobCompany, resumeId, onResumeCreated, onResumeUpdated, onInterviewNoteAdded, onOpenSettings, bg, assistantTitle }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
@@ -272,7 +274,7 @@ export function ChatPanel({ jobId, jobTitle, jobCompany, resumeId, onResumeCreat
 
   return <div className="flex flex-col h-full bg-gray-50">
     <div className="panel-header">
-      <span className="panel-title flex-1 min-w-0"><Bot size={14} className="text-purple-500" /><span className="truncate">求职 Agent</span></span>
+      <span className="panel-title flex-1 min-w-0"><Bot size={14} className="text-purple-500" /><span className="truncate">{assistantTitle ?? '求职 Agent'}</span></span>
       <div className="flex items-center gap-0.5">
         <button className="p-1 rounded-md text-gray-400 hover:bg-gray-100" onClick={handleClearChat} title="清空对话"><RefreshCw size={13} /></button>
         <button

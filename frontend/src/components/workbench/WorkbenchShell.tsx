@@ -13,8 +13,11 @@ export interface WorkbenchShellProps {
   selectedResume: Resume | null;
   currentProvider: CurrentProvider | null;
   onSelectJob: (job: Job) => void;
+  onSelectResume: (resume: Resume) => void;
   onJobCreated: (job: Job) => void;
   onJobDeleted: (jobId: number) => void;
+  onJobUpdated: (job: Job) => void;
+  onResumeDeleted: (resumeId: number) => void;
   onResumeUpdated: (resume: Resume) => void;
   onResumeCreated: (resume: Resume) => void;
   onNewResume: (jobId: number) => void;
@@ -39,8 +42,11 @@ export function WorkbenchShell(props: WorkbenchShellProps) {
     selectedResume,
     currentProvider,
     onSelectJob,
+    onSelectResume,
     onJobCreated,
     onJobDeleted,
+    onJobUpdated,
+    onResumeDeleted,
     onResumeUpdated,
     onResumeCreated,
     onNewResume,
@@ -74,10 +80,17 @@ export function WorkbenchShell(props: WorkbenchShellProps) {
           jobs={jobs}
           resumes={resumes}
           selectedJobId={selectedJob?.id ?? null}
+          selectedResumeId={selectedResume?.id ?? null}
           iconStrip={jobLibraryIconStrip}
           onSelectJob={onSelectJob}
+          onSelectResume={onSelectResume}
           onJobCreated={onJobCreated}
           onJobDeleted={onJobDeleted}
+          onResumeDeleted={onResumeDeleted}
+          onResumeUpdated={onResumeUpdated}
+          onNewResume={onNewResume}
+          onInterviewGuideRenamed={onInterviewNoteAdded}
+          onInterviewGuideDeleted={onInterviewNoteAdded}
           currentProvider={currentProvider}
           onOpenSettings={onOpenSettings}
         />
@@ -86,8 +99,10 @@ export function WorkbenchShell(props: WorkbenchShellProps) {
             job={selectedJob}
             resumes={resumes}
             selectedResume={selectedResume}
+            onJobUpdated={onJobUpdated}
             onResumeUpdated={onResumeUpdated}
             onNewResume={onNewResume}
+            userBackground={bg.background}
             interviewNotesRefreshKey={interviewNotesRefreshKey}
             canStartSimulation={canStartSimulation}
             backgroundProfileId={bg.activeProfileId}

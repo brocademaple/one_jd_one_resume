@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import type { Job, Resume } from '../../types';
 import { fetchCompetencyModels } from '../../api';
 import { useWorkbenchStore } from '../../store/useWorkbenchStore';
+import { useCompetencyScorecard } from '../../hooks/useCompetencyScorecard';
 import {
-  buildCapabilitiesFromDimensions,
-  defaultCapabilitiesForJob,
+  buildCapabilitiesFromScorecard,
+  gapsFromCapabilities,
+  getModelDimensions,
   type WorkbenchCapability,
 } from '../../utils/workbenchCapabilities';
 import {
@@ -12,20 +15,23 @@ import {
   getAnalysisStatusLabel,
 } from '../../utils/jobAnalysisStatus';
 import { HexRadarChart } from './HexRadarChart';
-import { JDHighlightPanel } from './JDHighlightPanel';
 import { EvidenceGapsPanel } from './EvidenceGapsPanel';
+import { CompetencyAnalysisEmpty } from './CompetencyAnalysisEmpty';
 import { ResumePanel } from '../ResumePanel';
 import { InterviewGuidePanel } from '../InterviewGuidePanel';
+import { JDPanel } from '../JDPanel';
 
 interface MainWorkbenchAreaProps {
   job: Job | null;
   resumes: Resume[];
   selectedResume: Resume | null;
+  onJobUpdated: (job: Job) => void;
   onResumeUpdated: (resume: Resume) => void;
   onNewResume: (jobId: number) => void;
   interviewNotesRefreshKey: number;
   canStartSimulation: boolean;
   backgroundProfileId: number | null;
+  userBackground?: string;
   onStartInterviewSim?: (preferredCategories: string[] | null) => void;
 }
 
@@ -33,16 +39,21 @@ export function MainWorkbenchArea({
   job,
   resumes,
   selectedResume,
+  onJobUpdated,
   onResumeUpdated,
   onNewResume,
   interviewNotesRefreshKey,
   canStartSimulation,
   backgroundProfileId,
+  userBackground,
   onStartInterviewSim,
 }: MainWorkbenchAreaProps) {
   const { step, centerTab, setCenterTab, selectedCapabilityId, setSelectedCapabilityId } =
     useWorkbenchStore();
   const [models, setModels] = useState<Record<string, string[]>>({});
+
+  const { scorecard, loading, running, hasAnalysis, runAnalysis, reload } =
+    useCompetencyScorecard(job, selectedResume, userBackground);
 
   useEffect(() => {
     fetchCompetencyModels()
@@ -50,13 +61,15 @@ export function MainWorkbenchArea({
       .catch(() => setModels({}));
   }, []);
 
-  const capabilities: WorkbenchCapability[] = useMemo(() => {
-    if (!job) return defaultCapabilitiesForJob(null);
-    const profile = job.competency_profile || 'default';
-    const dims = models[profile];
-    if (dims?.length) return buildCapabilitiesFromDimensions(job, dims);
-    return defaultCapabilitiesForJob(job);
+  const dimensionNames = useMemo(() => {
+    if (!job) return [];
+    return getModelDimensions(models, job.competency_profile, job.title);
   }, [job, models]);
+
+  const capabilities: WorkbenchCapability[] = useMemo(() => {
+    if (!job || !scorecard || !dimensionNames.length) return [];
+    return buildCapabilitiesFromScorecard(dimensionNames, scorecard, job.content || '');
+  }, [job, scorecard, dimensionNames]);
 
   useEffect(() => {
     if (capabilities.length && !capabilities.find((c) => c.id === selectedCapabilityId)) {
@@ -75,39 +88,87 @@ export function MainWorkbenchArea({
     );
   }
 
+  const jobResumes = resumes.filter((r) => r.job_id === job.id);
+  const gapList = gapsFromCapabilities(capabilities);
   const analysisStatus = inferJobAnalysisStatus(
     job,
-    resumes.filter((r) => r.job_id === job.id),
+    jobResumes,
+    hasAnalysis,
+    gapList.length > 0,
   );
-  const gapCount = capabilities.filter((c) => c.matchState !== 'done').length;
+
+  const radarBlock = !hasAnalysis ? (
+    <CompetencyAnalysisEmpty
+      needsResume={!selectedResume}
+      loading={loading}
+      running={running}
+      onNewResume={() => onNewResume(job.id)}
+      onRunAnalysis={() => void runAnalysis()}
+    />
+  ) : (
+    <>
+      <div className="flex justify-end px-2 pt-1 gap-1">
+        <button
+          type="button"
+          className="text-[10px] text-primary-700 flex items-center gap-0.5 hover:underline disabled:opacity-50"
+          disabled={running || !selectedResume}
+          onClick={() => void runAnalysis()}
+        >
+          {running ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+          重新分析
+        </button>
+      </div>
+      <HexRadarChart
+        capabilities={capabilities}
+        selectedId={selectedCap?.id ?? null}
+        onSelect={setSelectedCapabilityId}
+      />
+      {gapList.length > 0 && (
+        <div className="absolute bottom-2 left-2 right-2 max-w-[220px]">
+          <EvidenceGapsPanel capabilities={capabilities} compact />
+        </div>
+      )}
+    </>
+  );
 
   if (step === 3) {
     return (
       <div className="flex-1 min-h-0 overflow-y-auto p-3 grid gap-3 lg:grid-cols-2">
         <div className="space-y-3">
           <h2 className="text-[14px] font-semibold text-slate-900">证据原文</h2>
-          <div className="ojor-glass rounded-2xl p-3 text-[13px] text-slate-800 leading-relaxed">
-            <p className="text-slate-500 text-[11px] mb-2">
-              对照助手与简历中的可引用片段将汇总于此（可在对话中收藏到面试指导）。
-            </p>
-            {selectedResume ? (
-              <div className="border-l-[3px] border-primary-600 pl-2 bg-primary-500/5 rounded-r-lg py-1">
-                当前简历：{selectedResume.title || `v${selectedResume.version}`}
-              </div>
+          <div className="ojor-glass rounded-2xl p-3 text-[13px] text-slate-800 leading-relaxed space-y-2">
+            {!hasAnalysis ? (
+              <CompetencyAnalysisEmpty
+                needsResume={!selectedResume}
+                loading={loading}
+                running={running}
+                onNewResume={() => onNewResume(job.id)}
+                onRunAnalysis={() => void runAnalysis()}
+              />
             ) : (
-              <button
-                type="button"
-                className="text-primary-600 text-[12px] underline"
-                onClick={() => onNewResume(job.id)}
-              >
-                新建简历以开始对照
-              </button>
+              capabilities.flatMap((c) =>
+                (scorecard?.items.find((it) => it.competency.includes(c.dimensionName) || c.dimensionName.includes(it.competency))?.evidence ?? []).map(
+                  (ev, idx) => (
+                    <div
+                      key={`${c.id}-${idx}`}
+                      className="border-l-[3px] border-primary-600 pl-2 bg-primary-500/5 rounded-r-lg py-1 text-[12px]"
+                    >
+                      <div className="text-[10px] text-slate-500 mb-0.5">
+                        {c.dimensionName} · {ev.source}
+                      </div>
+                      {ev.quote}
+                    </div>
+                  ),
+                ),
+              )
             )}
           </div>
         </div>
         <div className="space-y-3">
           <h2 className="text-[14px] font-semibold text-slate-900">待补清单</h2>
-          <EvidenceGapsPanel capabilities={capabilities} />
+          {hasAnalysis ? (
+            <EvidenceGapsPanel capabilities={capabilities} />
+          ) : null}
           <InterviewGuidePanel
             jobId={job.id}
             refreshKey={interviewNotesRefreshKey}
@@ -146,11 +207,12 @@ export function MainWorkbenchArea({
           <h1 className="text-[14px] font-semibold text-slate-900 truncate">{job.title}</h1>
           <p className="text-[11px] text-slate-500">
             {[job.company, job.salary].filter(Boolean).join(' · ') || '未填写公司'}
+            {selectedResume ? ` · 简历：${selectedResume.title || `v${selectedResume.version}`}` : ''}
           </p>
         </div>
-        {gapCount > 0 && (
+        {gapList.length > 0 && (
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-900 border border-amber-300/40">
-            待补证据 · {gapCount}项
+            待补证据 · {gapList.length}项
           </span>
         )}
         <span className="text-[10px] text-slate-500">{getAnalysisStatusLabel(analysisStatus)}</span>
@@ -182,58 +244,76 @@ export function MainWorkbenchArea({
       {centerTab === 'analysis' ? (
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-2 relative">
           <div className="min-h-0 flex flex-col items-center justify-center ojor-glass rounded-2xl p-2 relative">
-            <HexRadarChart
-              capabilities={capabilities}
-              selectedId={selectedCap?.id ?? null}
-              onSelect={setSelectedCapabilityId}
-            />
-            <div className="absolute bottom-2 left-2 right-2 max-w-[200px]">
-              <EvidenceGapsPanel capabilities={capabilities} compact />
-            </div>
+            {radarBlock}
           </div>
-          <div className="min-h-0">
-            <JDHighlightPanel
+          <div className="min-h-0 ojor-glass rounded-2xl overflow-hidden flex flex-col">
+            <JDPanel
               job={job}
-              capabilities={capabilities}
-              selectedCapability={selectedCap}
+              onJobUpdated={onJobUpdated}
+              highlightQuote={selectedCap?.highlightSnippet}
+              className="!border-0 !rounded-none h-full !bg-transparent"
             />
           </div>
         </div>
       ) : (
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-2">
           <div className="min-h-0 grid grid-rows-[auto_1fr] gap-2">
-            <div className="ojor-glass rounded-2xl p-2 min-h-[200px]">
-              <HexRadarChart
-                capabilities={capabilities}
-                selectedId={selectedCap?.id ?? null}
-                onSelect={setSelectedCapabilityId}
-                overlayMode
-              />
+            <div className="ojor-glass rounded-2xl p-2 min-h-[200px] relative">
+              {!hasAnalysis ? (
+                <CompetencyAnalysisEmpty
+                  needsResume={!selectedResume}
+                  loading={loading}
+                  running={running}
+                  onNewResume={() => onNewResume(job.id)}
+                  onRunAnalysis={() => void runAnalysis()}
+                />
+              ) : (
+                <HexRadarChart
+                  capabilities={capabilities}
+                  selectedId={selectedCap?.id ?? null}
+                  onSelect={setSelectedCapabilityId}
+                  overlayMode
+                />
+              )}
             </div>
             <div className="min-h-0 ojor-glass rounded-2xl overflow-hidden flex flex-col">
-              <div className="px-2 py-1.5 border-b border-white/40 text-[12px] font-medium">
-                投前差距指导
+              <div className="px-2 py-1.5 border-b border-white/40 text-[12px] font-medium flex justify-between">
+                <span>投前差距指导</span>
+                {hasAnalysis && (
+                  <button
+                    type="button"
+                    className="text-[10px] text-primary-600"
+                    onClick={() => void reload()}
+                  >
+                    刷新
+                  </button>
+                )}
               </div>
               <div className="flex-1 overflow-y-auto p-2 text-[12px] text-slate-700 space-y-2">
-                {capabilities
-                  .filter((c) => c.matchState !== 'done')
-                  .map((c) => (
-                    <div
-                      key={c.id}
-                      className="border-l-[3px] border-amber-500 pl-2 py-1 bg-amber-500/5 rounded-r-lg"
-                    >
-                      <div className="font-medium">{c.label}</div>
-                      <div className="text-[11px] text-slate-600">{c.evidenceHint}</div>
-                    </div>
-                  ))}
-                {capabilities.every((c) => c.matchState === 'done') && (
+                {!hasAnalysis ? (
+                  <p className="text-slate-500">请先运行能力对照分析以生成差距建议。</p>
+                ) : capabilities.filter((c) => c.matchState !== 'done').length === 0 ? (
                   <p className="text-slate-500">各维度已有基础证据，可进入模拟面试强化表达。</p>
+                ) : (
+                  capabilities
+                    .filter((c) => c.matchState !== 'done')
+                    .map((c) => (
+                      <div
+                        key={c.id}
+                        className="border-l-[3px] border-amber-500 pl-2 py-1 bg-amber-500/5 rounded-r-lg"
+                      >
+                        <div className="font-medium">{c.dimensionName}</div>
+                        <div className="text-[11px] text-slate-600">
+                          {c.evidenceHint || c.suggestion || c.summary}
+                        </div>
+                      </div>
+                    ))
                 )}
               </div>
             </div>
           </div>
           <div className="min-h-0 flex flex-col gap-2">
-            <EvidenceGapsPanel capabilities={capabilities} />
+            {hasAnalysis && <EvidenceGapsPanel capabilities={capabilities} />}
             <div className="flex-1 min-h-0 rounded-2xl overflow-hidden border border-white/50 bg-white/40">
               {selectedResume ? (
                 <ResumePanel resume={selectedResume} onResumeUpdated={onResumeUpdated} />

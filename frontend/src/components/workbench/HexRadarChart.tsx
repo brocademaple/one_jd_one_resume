@@ -1,18 +1,18 @@
 import type { WorkbenchCapability } from '../../utils/workbenchCapabilities';
 
-const SIZE = 280;
+const SIZE = 300;
 const CX = SIZE / 2;
 const CY = SIZE / 2;
-const R = 88;
+const R = 86;
 
-function polar(angleDeg: number, radius: number) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180;
+function polar(index: number, radius: number, n: number) {
+  const rad = (((index * 360) / n - 90) * Math.PI) / 180;
   return { x: CX + radius * Math.cos(rad), y: CY + radius * Math.sin(rad) };
 }
 
-function hexPoints(radius: number): string {
-  return Array.from({ length: 6 }, (_, i) => {
-    const { x, y } = polar(i * 60, radius);
+function ngonPoints(radius: number, n: number): string {
+  return Array.from({ length: n }, (_, i) => {
+    const { x, y } = polar(i, radius, n);
     return `${x},${y}`;
   }).join(' ');
 }
@@ -30,29 +30,38 @@ export function HexRadarChart({
   onSelect,
   overlayMode = false,
 }: HexRadarChartProps) {
-  const caps = capabilities.slice(0, 6);
+  const caps = capabilities;
+  const n = caps.length;
+  if (n < 3) {
+    return (
+      <p className="text-[12px] text-slate-500 text-center py-8">胜任力模型维度不足，无法绘制雷达图</p>
+    );
+  }
+
   const scorePolygon = caps
     .map((c, i) => {
-      const r = (c.score / 6) * R;
-      const { x, y } = polar(i * 60, r);
+      const level = c.score <= 0 ? 0.08 : c.score / 6;
+      const { x, y } = polar(i, R * level, n);
       return `${x},${y}`;
     })
     .join(' ');
 
+  const labelRadius = R + 48;
+
   return (
-    <div className="relative w-full max-w-[320px] mx-auto select-none">
-      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full h-auto" aria-label="六维能力雷达">
+    <div className="relative w-full max-w-[340px] mx-auto select-none min-h-[280px]">
+      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full h-auto" aria-label="能力雷达">
         {[0.33, 0.66, 1].map((scale) => (
           <polygon
             key={scale}
-            points={hexPoints(R * scale)}
+            points={ngonPoints(R * scale, n)}
             fill="none"
             stroke="rgba(97,114,243,0.18)"
             strokeWidth={1}
           />
         ))}
         {caps.map((_, i) => {
-          const { x, y } = polar(i * 60, R);
+          const { x, y } = polar(i, R, n);
           return (
             <line
               key={i}
@@ -72,14 +81,9 @@ export function HexRadarChart({
           strokeWidth={1.5}
           className="transition-all duration-200"
         />
-        <circle cx={CX} cy={CY} r={28} fill="#6172F3" className="drop-shadow-sm" />
-        <text
-          x={CX}
-          y={CY - 4}
-          textAnchor="middle"
-          className="fill-white text-[11px] font-semibold"
-        >
-          {caps.length}项
+        <circle cx={CX} cy={CY} r={26} fill="#6172F3" className="drop-shadow-sm" />
+        <text x={CX} y={CY - 3} textAnchor="middle" className="fill-white text-[11px] font-semibold">
+          {n}项
         </text>
         <text x={CX} y={CY + 10} textAnchor="middle" className="fill-white/90 text-[9px]">
           能力
@@ -87,17 +91,22 @@ export function HexRadarChart({
       </svg>
 
       {caps.map((cap, i) => {
-        const { x, y } = polar(i * 60, R + 42);
+        const { x, y } = polar(i, labelRadius, n);
         const selected = cap.id === selectedId;
         const stateLabel =
-          cap.matchState === 'done' ? '已做到' : cap.matchState === 'partial' ? '部分覆盖' : '待补证据';
+          cap.matchState === 'done'
+            ? `已做到 · ${cap.scorePercent}分`
+            : cap.matchState === 'partial'
+              ? `部分 · ${cap.scorePercent}分`
+              : `待补 · ${cap.scorePercent}分`;
         return (
           <button
             key={cap.id}
             type="button"
+            title={cap.dimensionName}
             className={[
-              'ojor-bubble absolute -translate-x-1/2 -translate-y-1/2 text-left min-w-[72px] max-w-[96px]',
-              'rounded-2xl px-2.5 py-1.5 border shadow-sm backdrop-blur-md',
+              'ojor-bubble absolute -translate-x-1/2 -translate-y-1/2 text-left min-w-[68px] max-w-[100px]',
+              'rounded-2xl px-2 py-1.5 border shadow-sm backdrop-blur-md',
               selected
                 ? 'border-primary-600 bg-white/90 ring-2 ring-primary-500/40 scale-[1.03]'
                 : 'border-white/60 bg-white/70 hover:border-primary-300',
@@ -105,7 +114,9 @@ export function HexRadarChart({
             style={{ left: `${(x / SIZE) * 100}%`, top: `${(y / SIZE) * 100}%` }}
             onClick={() => onSelect(cap.id)}
           >
-            <div className="text-[11px] font-semibold text-slate-900 leading-tight">{cap.label}</div>
+            <div className="text-[10px] font-semibold text-slate-900 leading-tight line-clamp-2">
+              {cap.label}
+            </div>
             <div className="text-[9px] text-slate-500 mt-0.5">{stateLabel}</div>
           </button>
         );

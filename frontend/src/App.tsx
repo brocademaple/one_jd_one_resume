@@ -40,6 +40,7 @@ function App() {
     incrementInterviewNotesRefreshKey,
     addJob,
     deleteJob,
+    updateJob,
     addResume,
     updateResume,
     deleteResume,
@@ -98,6 +99,27 @@ function App() {
       if (job) selectJob(job);
     },
     [selectJob],
+  );
+
+  const handleSelectResume = useCallback(
+    (resume: typeof selectedResume) => {
+      if (resume) selectResume(resume);
+    },
+    [selectResume],
+  );
+
+  const handleJobUpdated = useCallback(
+    (job: typeof selectedJob) => {
+      if (job) updateJob(job);
+    },
+    [updateJob],
+  );
+
+  const handleResumeDeleted = useCallback(
+    (resumeId: number) => {
+      deleteResume(resumeId);
+    },
+    [deleteResume],
   );
 
   const handleJobCreated = useCallback(
@@ -206,8 +228,11 @@ function App() {
         selectedResume={selectedResume}
         currentProvider={currentProvider}
         onSelectJob={handleSelectJob}
+        onSelectResume={handleSelectResume}
         onJobCreated={handleJobCreated}
         onJobDeleted={handleJobDeleted}
+        onJobUpdated={handleJobUpdated}
+        onResumeDeleted={handleResumeDeleted}
         onResumeUpdated={handleResumeUpdated}
         onResumeCreated={handleResumeCreated}
         onNewResume={handleNewResume}
