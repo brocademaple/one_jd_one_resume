@@ -64,6 +64,7 @@ export interface ProviderConfig {
 export interface SettingsResponse {
   provider: string;
   model: string;
+  openai_compat_base_url?: string;
   api_keys_set: Record<string, string>;
   providers: Record<string, ProviderConfig>;
 }

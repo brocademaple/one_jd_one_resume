@@ -21,8 +21,9 @@ const PROVIDER_DOCS: Record<string, { label: string; url: string }> = {
 
 export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState('anthropic');
-  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState('deepseek');
+  const [selectedModel, setSelectedModel] = useState('deepseek-flash');
+  const [openaiCompatBaseUrl, setOpenaiCompatBaseUrl] = useState('');
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
@@ -37,6 +38,7 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
       setSettings(data);
       setSelectedProvider(data.provider);
       setSelectedModel(data.model);
+      setOpenaiCompatBaseUrl(data.openai_compat_base_url ?? '');
       setApiKeys(Object.fromEntries(
         Object.keys(data.providers).map(k => [k, ''])
       ));
@@ -63,6 +65,7 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
         provider: selectedProvider,
         model: selectedModel,
         api_keys: apiKeys,
+        openai_compat_base_url: openaiCompatBaseUrl,
       });
       setSaved(true);
       onSaved();
@@ -206,6 +209,24 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* OpenAI-compatible relay (optional) */}
+          <div className="px-6 pt-5">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+              OpenAI 兼容 Base URL（可选）
+            </p>
+            <input
+              type="url"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-400"
+              placeholder="留空则使用各厂商默认地址，如 https://your-relay.example/v1"
+              value={openaiCompatBaseUrl}
+              onChange={(e) => setOpenaiCompatBaseUrl(e.target.value)}
+            />
+            <p className="text-[11px] text-gray-500 mt-1.5 leading-snug">
+              对通义、智谱、DeepSeek、Kimi、文心等 OpenAI 兼容接口生效；Anthropic 不受影响。保存至
+              ai_settings.json。
+            </p>
           </div>
 
           {/* API Keys section */}

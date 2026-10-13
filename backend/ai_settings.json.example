@@ -1,6 +1,7 @@
 {
-  "provider": "qwen",
-  "model": "qwen-plus",
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "openai_compat_base_url": "",
   "api_keys": {
     "anthropic": "",
     "qwen": "",

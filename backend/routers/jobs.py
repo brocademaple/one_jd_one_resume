@@ -11,16 +11,27 @@ import schemas
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 
-@router.get("/competency-profiles")
-def list_competency_profiles():
+def _load_competency_models_file() -> dict:
     fp = Path(__file__).resolve().parents[1] / "data" / "competency_models.json"
     try:
         data = json.loads(fp.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            return {"profiles": ["default"]}
-        return {"profiles": list(data.keys())}
+        return data if isinstance(data, dict) else {}
     except Exception:
+        return {}
+
+
+@router.get("/competency-profiles")
+def list_competency_profiles():
+    data = _load_competency_models_file()
+    if not data:
         return {"profiles": ["default"]}
+    return {"profiles": list(data.keys())}
+
+
+@router.get("/competency-models")
+def list_competency_models():
+    data = _load_competency_models_file()
+    return {"models": data}
 
 
 @router.get("", response_model=List[schemas.JobResponse])

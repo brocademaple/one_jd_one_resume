@@ -1,45 +1,28 @@
-import { useEffect, useCallback, useRef, useState } from 'react';
-import { Sidebar } from './components/Sidebar';
-import { JDAndInterviewGuideColumn } from './components/JDAndInterviewGuideColumn';
-import { ResumePanel } from './components/ResumePanel';
-import { ChatPanel } from './components/ChatPanel';
-import { AppHeaderBar } from './components/AppHeaderBar';
+import { useEffect, useCallback, useState } from 'react';
+import { WorkbenchShell } from './components/workbench/WorkbenchShell';
 import { BackgroundProfileModal } from './components/background/BackgroundProfileModal';
 import { BackgroundImportModal } from './components/background/BackgroundImportModal';
-import {
-  ResizablePanels,
-  type ResizablePanelsHandle,
-  type PanelCollapseState,
-} from './components/ResizablePanels';
-import { ResizableDivider } from './components/ResizableDivider';
 import { SettingsModal } from './components/SettingsModal';
 import { InterviewSimulationModal } from './components/InterviewSimulationModal';
+import { InterviewQuestionBankModal } from './components/InterviewQuestionBankModal';
+import { ExportPreviewModal } from './components/ExportPreviewModal';
 import { ToastContainer } from './components/Toast';
 import { useAppStore } from './store/useAppStore';
+import { useWorkbenchStore } from './store/useWorkbenchStore';
 import { fetchJobs, fetchResumes, createResume, fetchCurrentProvider } from './api';
-import { handleApiError } from './utils/errorHandler';
+import { handleApiError, showInfo } from './utils/errorHandler';
 import { fetchDefaultResumeTitle } from './utils/resumeDefaultTitle';
 import { useBackgroundProfiles } from './hooks/useBackgroundProfiles';
 
 function App() {
-  const mainRef = useRef<HTMLDivElement>(null);
   const [showBgModal, setShowBgModal] = useState(false);
   const [showBgImportModal, setShowBgImportModal] = useState(false);
   const [showInterviewSim, setShowInterviewSim] = useState(false);
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
+  const [exportModal, setExportModal] = useState<{ resumeId: number; title: string; content: string } | null>(null);
   const [interviewPreferredCategories, setInterviewPreferredCategories] = useState<string[] | null>(null);
   const bg = useBackgroundProfiles({ modalOpen: showBgModal });
-  const panelsRef = useRef<ResizablePanelsHandle>(null);
-  const [panelCollapsed, setPanelCollapsed] = useState<PanelCollapseState>({
-    jdCollapsed: false,
-    resumeCollapsed: false,
-    chatCollapsed: false,
-  });
 
-  const onPanelCollapseChange = useCallback((s: PanelCollapseState) => {
-    setPanelCollapsed(s);
-  }, []);
-
-  // Use Zustand store
   const {
     jobs,
     resumes,
@@ -48,34 +31,24 @@ function App() {
     loading,
     showSettings,
     currentProvider,
-    sidebarWidth,
-    sidebarCollapsed,
-    expandInterviewGuide,
     interviewNotesRefreshKey,
     setJobs,
     setResumes,
     setLoading,
     setCurrentProvider,
     setShowSettings,
-    setSidebarWidth,
-    setSidebarCollapsed,
-    setExpandInterviewGuide,
     incrementInterviewNotesRefreshKey,
     addJob,
-    updateJob,
     deleteJob,
+    updateJob,
     addResume,
     updateResume,
     deleteResume,
     selectJob,
-    selectResume
+    selectResume,
   } = useAppStore();
 
-  useEffect(() => {
-    if (!expandInterviewGuide) return;
-    const t = setTimeout(() => setExpandInterviewGuide(false), 150);
-    return () => clearTimeout(t);
-  }, [expandInterviewGuide]);
+  const { setStep, setCenterTab } = useWorkbenchStore();
 
   const loadProviderInfo = useCallback(async () => {
     try {
@@ -86,7 +59,6 @@ function App() {
     }
   }, [setCurrentProvider]);
 
-  // 1) 先加载岗位列表（与候选人无关）
   useEffect(() => {
     const loadJobs = async () => {
       try {
@@ -100,7 +72,6 @@ function App() {
     void loadJobs();
   }, [loadProviderInfo, setJobs]);
 
-  // 2) 再按当前候选人（人物背景档案）加载该候选人的多份简历
   useEffect(() => {
     const loadResumes = async () => {
       try {
@@ -110,7 +81,6 @@ function App() {
         });
         setResumes(resumesData);
         if (selectedJob) {
-          // 切换候选人后，确保选中的简历仍落在当前岗位下
           selectJob(selectedJob);
         }
       } catch (err) {
@@ -124,77 +94,125 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bg.activeProfileId, selectedJob, setResumes, setLoading, selectJob]);
 
-  // Simplified handlers using Zustand actions
-  const handleSelectJob = useCallback((job: typeof selectedJob) => {
-    if (job) selectJob(job);
-  }, [selectJob]);
+  const handleSelectJob = useCallback(
+    (job: typeof selectedJob) => {
+      if (job) selectJob(job);
+    },
+    [selectJob],
+  );
 
-  const handleSelectResume = useCallback((resume: typeof selectedResume) => {
-    if (resume) selectResume(resume);
-  }, [selectResume]);
+  const handleSelectResume = useCallback(
+    (resume: typeof selectedResume) => {
+      if (resume) selectResume(resume);
+    },
+    [selectResume],
+  );
 
-  const handleJobCreated = useCallback((job: typeof selectedJob) => {
-    if (job) addJob(job);
-  }, [addJob]);
+  const handleJobUpdated = useCallback(
+    (job: typeof selectedJob) => {
+      if (job) updateJob(job);
+    },
+    [updateJob],
+  );
 
-  const handleJobUpdated = useCallback((job: typeof selectedJob) => {
-    if (job) updateJob(job);
-  }, [updateJob]);
+  const handleResumeDeleted = useCallback(
+    (resumeId: number) => {
+      deleteResume(resumeId);
+    },
+    [deleteResume],
+  );
 
-  const handleJobDeleted = useCallback((jobId: number) => {
-    deleteJob(jobId);
-  }, [deleteJob]);
+  const handleJobCreated = useCallback(
+    (job: typeof selectedJob) => {
+      if (job) addJob(job);
+    },
+    [addJob],
+  );
 
-  const handleResumeCreated = useCallback((resume: typeof selectedResume) => {
-    if (resume) addResume(resume);
-  }, [addResume]);
+  const handleJobDeleted = useCallback(
+    (jobId: number) => {
+      deleteJob(jobId);
+    },
+    [deleteJob],
+  );
 
-  const handleResumeUpdated = useCallback((resume: typeof selectedResume) => {
-    if (resume) updateResume(resume);
-  }, [updateResume]);
+  const handleResumeCreated = useCallback(
+    (resume: typeof selectedResume) => {
+      if (resume) addResume(resume);
+    },
+    [addResume],
+  );
 
-  const handleResumeDeleted = useCallback((resumeId: number) => {
-    deleteResume(resumeId);
-  }, [deleteResume]);
+  const handleResumeUpdated = useCallback(
+    (resume: typeof selectedResume) => {
+      if (resume) updateResume(resume);
+    },
+    [updateResume],
+  );
 
-  const handleNewResume = useCallback(async (jobId: number) => {
-    const job = jobs.find(j => j.id === jobId);
-    if (!job) return;
-    try {
-      const title = await fetchDefaultResumeTitle(job.title);
-      const resume = await createResume({
-        job_id: jobId,
-        content: `# 简历\n\n> 请与Agent对话生成定制简历内容。`,
-        title,
-        background_profile_id: bg.activeProfileId,
-      });
-      addResume(resume);
-      selectJob(job);
-    } catch (err) {
-      handleApiError(err, '创建简历失败');
+  const handleNewResume = useCallback(
+    async (jobId: number) => {
+      const job = jobs.find((j) => j.id === jobId);
+      if (!job) return;
+      try {
+        const title = await fetchDefaultResumeTitle(job.title);
+        const resume = await createResume({
+          job_id: jobId,
+          content: `# 简历\n\n> 请与 Agent 对话生成定制简历内容。`,
+          title,
+          background_profile_id: bg.activeProfileId,
+        });
+        addResume(resume);
+        selectJob(job);
+        setStep(2);
+        setCenterTab('compare');
+      } catch (err) {
+        handleApiError(err, '创建简历失败');
+      }
+    },
+    [jobs, addResume, selectJob, bg.activeProfileId, setStep, setCenterTab],
+  );
+
+  const handleExport = useCallback(() => {
+    if (!selectedResume) {
+      showInfo('请先创建并选择一份简历后再导出');
+      return;
     }
-  }, [jobs, addResume, selectJob, bg.activeProfileId]);
+    setExportModal({
+      resumeId: selectedResume.id,
+      title: selectedResume.title || `简历 v${selectedResume.version}`,
+      content: selectedResume.content,
+    });
+  }, [selectedResume]);
 
-  const handleSidebarResize = useCallback((delta: number) => {
-    setSidebarWidth(Math.max(180, Math.min(400, sidebarWidth + delta)));
-  }, [sidebarWidth, setSidebarWidth]);
-
-  const toggleSidebar = useCallback(() => {
-    if (sidebarCollapsed) {
-      setSidebarWidth(256);
-      setSidebarCollapsed(false);
-    } else {
-      setSidebarWidth(0);
-      setSidebarCollapsed(true);
+  const handleQuestionBank = useCallback(() => {
+    if (!selectedJob || !selectedResume) {
+      showInfo('请先选择岗位与简历以打开题库');
+      return;
     }
-  }, [sidebarCollapsed, setSidebarWidth, setSidebarCollapsed]);
+    setShowQuestionBank(true);
+  }, [selectedJob, selectedResume]);
+
+  const handleMockInterview = useCallback(() => {
+    if (!selectedJob || !selectedResume || selectedResume.job_id !== selectedJob.id) {
+      showInfo('模拟面试前请先完成投前差距指导，并确保已选中对应简历');
+      return;
+    }
+    setInterviewPreferredCategories(null);
+    setShowInterviewSim(true);
+  }, [selectedJob, selectedResume]);
+
+  const handlePreApplyGuidance = useCallback(() => {
+    setStep(2);
+    setCenterTab('compare');
+  }, [setStep, setCenterTab]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-100">
+      <div className="flex items-center justify-center h-full ojor-workbench-bg">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">加载中...</p>
+          <p className="text-slate-500 text-sm">加载中...</p>
         </div>
       </div>
     );
@@ -203,88 +221,41 @@ function App() {
   return (
     <>
       <ToastContainer />
-      <div ref={mainRef} className="flex w-full h-full overflow-hidden min-w-0">
-      <div
-        className="flex-shrink-0 overflow-hidden transition-all duration-200"
-        style={{ width: sidebarCollapsed ? 0 : sidebarWidth, minWidth: sidebarCollapsed ? 0 : 180 }}
-      >
-        <Sidebar
+      <WorkbenchShell
         jobs={jobs}
         resumes={resumes}
-        selectedJobId={selectedJob?.id ?? null}
-        selectedResumeId={selectedResume?.id ?? null}
+        selectedJob={selectedJob}
+        selectedResume={selectedResume}
+        currentProvider={currentProvider}
         onSelectJob={handleSelectJob}
         onSelectResume={handleSelectResume}
         onJobCreated={handleJobCreated}
         onJobDeleted={handleJobDeleted}
+        onJobUpdated={handleJobUpdated}
         onResumeDeleted={handleResumeDeleted}
         onResumeUpdated={handleResumeUpdated}
+        onResumeCreated={handleResumeCreated}
         onNewResume={handleNewResume}
-        onExpandInterviewGuide={() => setExpandInterviewGuide(true)}
-        onInterviewGuideDeleted={incrementInterviewNotesRefreshKey}
-        onInterviewGuideRenamed={incrementInterviewNotesRefreshKey}
-        currentProvider={currentProvider}
+        onOpenBackground={() => setShowBgModal(true)}
         onOpenSettings={() => setShowSettings(true)}
+        bg={bg}
+        interviewNotesRefreshKey={interviewNotesRefreshKey}
+        onInterviewNoteAdded={incrementInterviewNotesRefreshKey}
+        canStartSimulation={
+          !!selectedJob &&
+          !!selectedResume &&
+          bg.activeProfileId != null &&
+          selectedResume.job_id === selectedJob.id
+        }
+        onStartInterviewSim={(preferredCategories) => {
+          setInterviewPreferredCategories(preferredCategories);
+          setShowInterviewSim(true);
+        }}
+        onExport={handleExport}
+        onQuestionBank={handleQuestionBank}
+        onMockInterview={handleMockInterview}
+        onPreApplyGuidance={handlePreApplyGuidance}
       />
-      </div>
-
-      <ResizableDivider
-        onResize={handleSidebarResize}
-        onToggle={toggleSidebar}
-        collapsed={sidebarCollapsed}
-        toggleExpandLabel="展开岗位栏"
-        toggleCollapseLabel="收起岗位栏"
-      />
-
-      <div className="flex-1 min-w-0 flex flex-col overflow-hidden" style={{ flex: '1 1 0' }}>
-        <AppHeaderBar
-          bg={bg}
-          onOpenBackground={() => setShowBgModal(true)}
-          columnToggles={{
-            jdCollapsed: panelCollapsed.jdCollapsed,
-            resumeCollapsed: panelCollapsed.resumeCollapsed,
-            chatCollapsed: panelCollapsed.chatCollapsed,
-            onToggleJd: () => panelsRef.current?.toggleJd(),
-            onToggleResume: () => panelsRef.current?.toggleResume(),
-            onToggleChat: () => panelsRef.current?.toggleChat(),
-          }}
-        />
-        <div className="flex-1 min-h-0 flex overflow-hidden">
-          <ResizablePanels ref={panelsRef} onCollapseStateChange={onPanelCollapseChange}>
-            <JDAndInterviewGuideColumn
-              job={selectedJob}
-              onJobUpdated={handleJobUpdated}
-              expandInterviewGuide={expandInterviewGuide}
-              interviewNotesRefreshKey={interviewNotesRefreshKey}
-              canStartSimulation={
-                !!selectedJob &&
-                !!selectedResume &&
-                bg.activeProfileId != null &&
-                selectedResume.job_id === selectedJob.id
-              }
-              resumeId={selectedResume?.id ?? null}
-              backgroundProfileId={bg.activeProfileId}
-              onStartInterviewSim={(preferredCategories) => {
-                setInterviewPreferredCategories(preferredCategories);
-                setShowInterviewSim(true);
-              }}
-            />
-            <ResumePanel resume={selectedResume} onResumeUpdated={handleResumeUpdated} />
-            <ChatPanel
-              jobId={selectedJob?.id ?? null}
-              jobTitle={selectedJob?.title ?? null}
-              jobCompany={selectedJob?.company ?? null}
-              resumeId={selectedResume?.id ?? null}
-              onResumeCreated={handleResumeCreated}
-              onResumeUpdated={handleResumeUpdated}
-              onInterviewNoteAdded={incrementInterviewNotesRefreshKey}
-              currentProvider={currentProvider}
-              onOpenSettings={() => setShowSettings(true)}
-              bg={bg}
-            />
-          </ResizablePanels>
-        </div>
-      </div>
 
       <BackgroundProfileModal
         open={showBgModal}
@@ -333,6 +304,38 @@ function App() {
         />
       )}
 
+      {showQuestionBank && selectedJob && selectedResume && (
+        <InterviewQuestionBankModal
+          open={showQuestionBank}
+          onClose={() => setShowQuestionBank(false)}
+          jobId={selectedJob.id}
+          jobTitle={selectedJob.title}
+          resumeId={selectedResume.id}
+          backgroundProfileId={bg.activeProfileId}
+          canStartSimulation={
+            !!selectedResume &&
+            bg.activeProfileId != null &&
+            selectedResume.job_id === selectedJob.id
+          }
+          onStartSimulation={(preferredCategories) => {
+            setShowQuestionBank(false);
+            setInterviewPreferredCategories(preferredCategories);
+            setShowInterviewSim(true);
+          }}
+        />
+      )}
+
+      {exportModal && (
+        <ExportPreviewModal
+          open={true}
+          onClose={() => setExportModal(null)}
+          format="pdf"
+          resumeId={exportModal.resumeId}
+          resumeTitle={exportModal.title}
+          content={exportModal.content}
+        />
+      )}
+
       {showSettings && (
         <SettingsModal
           onClose={() => setShowSettings(false)}
@@ -342,7 +345,6 @@ function App() {
           }}
         />
       )}
-      </div>
     </>
   );
 }

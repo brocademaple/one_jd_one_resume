@@ -35,6 +35,12 @@ export const fetchCompetencyProfiles = async (): Promise<{ profiles: string[] }>
   return res.json();
 };
 
+export const fetchCompetencyModels = async (): Promise<{ models: Record<string, string[]> }> => {
+  const res = await fetch(`${BASE_URL}/jobs/competency-models`);
+  if (!res.ok) throw new Error('Failed to fetch competency models');
+  return res.json();
+};
+
 export const deleteJob = async (id: number): Promise<void> => {
   const res = await fetch(`${BASE_URL}/jobs/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete job');
@@ -606,6 +612,7 @@ export const updateSettings = async (data: {
   provider: string;
   model: string;
   api_keys?: Record<string, string>;
+  openai_compat_base_url?: string;
 }): Promise<void> => {
   const res = await fetch(`${BASE_URL}/settings`, {
     method: 'PUT',
