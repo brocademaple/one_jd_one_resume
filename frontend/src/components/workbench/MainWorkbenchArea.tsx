@@ -6,7 +6,6 @@ import { useWorkbenchStore } from '../../store/useWorkbenchStore';
 import { useCompetencyScorecard } from '../../hooks/useCompetencyScorecard';
 import {
   buildCapabilitiesFromScorecard,
-  gapsFromCapabilities,
   getModelDimensions,
   type WorkbenchCapability,
 } from '../../utils/workbenchCapabilities';
@@ -15,7 +14,6 @@ import {
   getAnalysisStatusLabel,
 } from '../../utils/jobAnalysisStatus';
 import { HexRadarChart } from './HexRadarChart';
-import { EvidenceGapsPanel } from './EvidenceGapsPanel';
 import { CompetencyAnalysisEmpty } from './CompetencyAnalysisEmpty';
 import { ResumePanel } from '../ResumePanel';
 import { InterviewGuidePanel } from '../InterviewGuidePanel';
@@ -89,13 +87,7 @@ export function MainWorkbenchArea({
   }
 
   const jobResumes = resumes.filter((r) => r.job_id === job.id);
-  const gapList = gapsFromCapabilities(capabilities);
-  const analysisStatus = inferJobAnalysisStatus(
-    job,
-    jobResumes,
-    hasAnalysis,
-    gapList.length > 0,
-  );
+  const analysisStatus = inferJobAnalysisStatus(job, jobResumes, hasAnalysis);
 
   const radarBlock = !hasAnalysis ? (
     <CompetencyAnalysisEmpty
@@ -123,11 +115,6 @@ export function MainWorkbenchArea({
         selectedId={selectedCap?.id ?? null}
         onSelect={setSelectedCapabilityId}
       />
-      {gapList.length > 0 && (
-        <div className="absolute bottom-2 left-2 right-2 max-w-[220px]">
-          <EvidenceGapsPanel capabilities={capabilities} compact />
-        </div>
-      )}
     </>
   );
 
@@ -165,10 +152,6 @@ export function MainWorkbenchArea({
           </div>
         </div>
         <div className="space-y-3">
-          <h2 className="text-[14px] font-semibold text-slate-900">待补清单</h2>
-          {hasAnalysis ? (
-            <EvidenceGapsPanel capabilities={capabilities} />
-          ) : null}
           <InterviewGuidePanel
             jobId={job.id}
             refreshKey={interviewNotesRefreshKey}
@@ -210,11 +193,6 @@ export function MainWorkbenchArea({
             {selectedResume ? ` · 简历：${selectedResume.title || `v${selectedResume.version}`}` : ''}
           </p>
         </div>
-        {gapList.length > 0 && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-900 border border-amber-300/40">
-            待补证据 · {gapList.length}项
-          </span>
-        )}
         <span className="text-[10px] text-slate-500">{getAnalysisStatusLabel(analysisStatus)}</span>
       </div>
 
@@ -304,7 +282,7 @@ export function MainWorkbenchArea({
                       >
                         <div className="font-medium">{c.dimensionName}</div>
                         <div className="text-[11px] text-slate-600">
-                          {c.evidenceHint || c.suggestion || c.summary}
+                          {c.suggestion || c.summary}
                         </div>
                       </div>
                     ))
@@ -313,7 +291,6 @@ export function MainWorkbenchArea({
             </div>
           </div>
           <div className="min-h-0 flex flex-col gap-2">
-            {hasAnalysis && <EvidenceGapsPanel capabilities={capabilities} />}
             <div className="flex-1 min-h-0 rounded-2xl overflow-hidden border border-white/50 bg-white/40">
               {selectedResume ? (
                 <ResumePanel resume={selectedResume} onResumeUpdated={onResumeUpdated} />

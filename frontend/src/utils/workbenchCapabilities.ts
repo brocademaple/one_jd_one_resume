@@ -12,7 +12,6 @@ export interface WorkbenchCapability {
   dimensionName: string;
   matchState: CapabilityMatchState;
   highlightSnippet: string;
-  evidenceHint?: string;
   suggestion?: string;
   summary?: string;
 }
@@ -67,7 +66,6 @@ export function buildCapabilitiesFromScorecard(
     const scorePercent = item?.score ?? 0;
     const matchState = normalizeMatchState(scorePercent, item?.gap);
     const highlightSnippet = pickHighlightQuote(item, jobContent, name);
-    const evidenceHint = item?.gap?.trim() || item?.suggestion?.trim() || undefined;
     return {
       id: `dim-${i}`,
       label: name.length > 12 ? `${name.slice(0, 11)}…` : name,
@@ -76,21 +74,10 @@ export function buildCapabilitiesFromScorecard(
       scorePercent,
       matchState,
       highlightSnippet,
-      evidenceHint,
       suggestion: item?.suggestion?.trim() || undefined,
       summary: item?.summary?.trim() || undefined,
     };
   });
-}
-
-export function gapsFromCapabilities(caps: WorkbenchCapability[]): string[] {
-  const out: string[] = [];
-  for (const c of caps) {
-    if (c.evidenceHint) out.push(c.evidenceHint);
-    else if (c.matchState !== 'done' && c.suggestion) out.push(c.suggestion);
-    else if (c.matchState === 'gap' && c.summary) out.push(`${c.label}：${c.summary}`);
-  }
-  return [...new Set(out)];
 }
 
 export function getModelDimensions(

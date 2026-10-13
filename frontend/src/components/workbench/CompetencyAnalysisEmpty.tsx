@@ -44,7 +44,7 @@ export function CompetencyAnalysisEmpty({
       <Sparkles className="text-primary-600" size={28} />
       <p className="text-[13px] text-slate-700 font-medium">尚无能力对照分析</p>
       <p className="text-[11px] text-slate-500 leading-relaxed">
-        将基于岗位 JD、当前简历与人物背景，调用后端评分卡生成雷达与缺口（与模拟面试评分同源）。
+        将基于岗位 JD、当前简历与人物背景，调用后端评分卡生成能力雷达（与模拟面试评分同源）。
       </p>
       <button
         type="button"

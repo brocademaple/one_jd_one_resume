@@ -98,7 +98,7 @@ export function HexRadarChart({
             ? `已做到 · ${cap.scorePercent}分`
             : cap.matchState === 'partial'
               ? `部分 · ${cap.scorePercent}分`
-              : `待补 · ${cap.scorePercent}分`;
+              : `${cap.scorePercent}分`;
         return (
           <button
             key={cap.id}
