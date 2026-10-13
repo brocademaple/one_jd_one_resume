@@ -17,6 +17,7 @@ class SettingsUpdate(BaseModel):
     provider: str
     model: str
     api_keys: Optional[Dict[str, str]] = None
+    openai_compat_base_url: Optional[str] = None
 
 
 @router.get("")
@@ -30,6 +31,7 @@ def get_settings():
     return {
         "provider": settings["provider"],
         "model": settings["model"],
+        "openai_compat_base_url": settings.get("openai_compat_base_url", ""),
         "api_keys_set": masked,
         "providers": PROVIDERS,
     }
@@ -51,6 +53,8 @@ def update_settings(body: SettingsUpdate):
     settings = load_settings()
     settings["provider"] = body.provider
     settings["model"] = body.model
+    if body.openai_compat_base_url is not None:
+        settings["openai_compat_base_url"] = body.openai_compat_base_url.strip()
 
     to_sync = {}
     if body.api_keys:

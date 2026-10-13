@@ -612,6 +612,7 @@ export const updateSettings = async (data: {
   provider: string;
   model: string;
   api_keys?: Record<string, string>;
+  openai_compat_base_url?: string;
 }): Promise<void> => {
   const res = await fetch(`${BASE_URL}/settings`, {
     method: 'PUT',

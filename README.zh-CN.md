@@ -195,7 +195,7 @@ backend/routers/chat.py
 | Anthropic Claude | claude-opus-4-6 | console.anthropic.com |
 | 通义千问 (Qwen) | qwen-plus / qwen-max | bailian.console.aliyun.com |
 | 智谱 GLM | glm-4-flash (免费) / glm-4-plus | open.bigmodel.cn |
-| DeepSeek | deepseek-chat / deepseek-reasoner | platform.deepseek.com |
+| DeepSeek（默认） | deepseek-flash / deepseek-reasoner | platform.deepseek.com |
 | Moonshot (Kimi) | moonshot-v1-128k | platform.moonshot.cn |
 | 百度文心 (ERNIE) | ernie-4.0-turbo-8k | console.bce.baidu.com |
 
@@ -223,13 +223,15 @@ cd frontend && npm install
 **方式二：环境变量**
 
 ```bash
+export DEEPSEEK_API_KEY=sk-...        # 默认对话模型 DeepSeek Flash
+export DASHSCOPE_API_KEY=sk-...       # 通义千问；简历 PDF 解析（qwen-long / qwen-vl-plus）也依赖此 Key
 export ANTHROPIC_API_KEY=sk-ant-...
-export DASHSCOPE_API_KEY=sk-...       # 通义千问
 export ZHIPU_API_KEY=...              # 智谱
-export DEEPSEEK_API_KEY=sk-...        # DeepSeek
 export MOONSHOT_API_KEY=sk-...        # Kimi
 export QIANFAN_API_KEY=...            # 百度文心
 ```
+
+也可在「AI 模型设置」中填写可选的 **OpenAI 兼容 Base URL**（写入 `ai_settings.json`），用于中转/自建兼容网关。
 
 ### 3. 启动
 

@@ -142,7 +142,7 @@ React UI renders tokens and updates resume content when structured markers are d
 | Anthropic Claude | `claude-opus-4-6` | `console.anthropic.com` |
 | Qwen | `qwen-plus`, `qwen-max` | Alibaba Cloud Model Studio |
 | Zhipu GLM | `glm-4-flash`, `glm-4-plus` | Zhipu AI platform |
-| DeepSeek | `deepseek-chat`, `deepseek-reasoner` | DeepSeek platform |
+| DeepSeek (default) | `deepseek-flash`, `deepseek-reasoner` | DeepSeek platform |
 | Moonshot Kimi | `moonshot-v1-128k` | Moonshot platform |
 | Baidu ERNIE | `ernie-4.0-turbo-8k` | Baidu AI Cloud |
 
@@ -172,9 +172,11 @@ Copy the example settings file:
 cp backend/ai_settings.json.example backend/ai_settings.json
 ```
 
-Then add the API key for the provider you want to use.
+Then add the API key for the provider you want to use. The default chat model is **DeepSeek Flash** (`DEEPSEEK_API_KEY` in `backend/.env`).
 
-You can also configure API keys through the application UI after starting the app.
+Resume PDF parsing uses Qwen (`qwen-long` / `qwen-vl-plus`) and requires **`DASHSCOPE_API_KEY`**.
+
+You can also configure API keys—and an optional OpenAI-compatible relay **Base URL**—through the application UI after starting the app.
 
 ### 3. Start the development servers
 

@@ -194,7 +194,7 @@ async def chat_stream(request: schemas.ChatRequest, db: Session = Depends(get_db
 def get_current_provider():
     """Return the currently configured provider and model info for the UI."""
     settings = load_settings()
-    provider_id = settings.get("provider", "anthropic")
+    provider_id = settings.get("provider", "deepseek")
     model_id = settings.get("model", "")
     pconfig = PROVIDERS.get(provider_id, {})
     model_name = next(

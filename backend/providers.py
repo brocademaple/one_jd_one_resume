@@ -67,10 +67,11 @@ PROVIDERS: dict = {
         "base_url": "https://api.deepseek.com/v1",
         "env_key": "DEEPSEEK_API_KEY",
         "models": [
-            {"id": "deepseek-chat",     "name": "DeepSeek V3 (对话)"},
+            {"id": "deepseek-flash",    "name": "DeepSeek Flash (默认)"},
+            {"id": "deepseek-chat",     "name": "DeepSeek Chat (旧版别名)"},
             {"id": "deepseek-reasoner", "name": "DeepSeek R1 (推理)"},
         ],
-        "default_model": "deepseek-chat",
+        "default_model": "deepseek-flash",
     },
     "moonshot": {
         "name": "Moonshot (Kimi)",
@@ -105,10 +106,21 @@ PROVIDERS: dict = {
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "ai_settings.json")
 
 _DEFAULT_SETTINGS = {
-    "provider": "anthropic",
-    "model": "claude-opus-4-6",
+    "provider": "deepseek",
+    "model": "deepseek-flash",
+    "openai_compat_base_url": "",
     "api_keys": {k: "" for k in PROVIDERS},
 }
+
+
+def resolve_openai_compat_base_url(provider: str, settings: dict) -> str:
+    """Provider catalogue base_url, unless user set a relay / custom OpenAI-compatible endpoint."""
+    pconfig = PROVIDERS.get(provider) or {}
+    default = pconfig.get("base_url", "")
+    override = (settings.get("openai_compat_base_url") or "").strip().rstrip("/")
+    if override and pconfig.get("type") == "openai_compat":
+        return override
+    return default
 
 
 # ──────────────────────────────────────────────
@@ -123,6 +135,8 @@ def load_settings() -> dict:
             settings = dict(_DEFAULT_SETTINGS)
             settings.update(saved)
             settings["api_keys"] = {**_DEFAULT_SETTINGS["api_keys"], **saved.get("api_keys", {})}
+            if "openai_compat_base_url" not in settings:
+                settings["openai_compat_base_url"] = ""
             return settings
         except Exception:
             pass
@@ -260,7 +274,8 @@ async def test_connection(
                 async for _ in stream.text_stream:
                     break
         else:
-            client = AsyncOpenAI(base_url=pconfig["base_url"], api_key=api_key)
+            base_url = resolve_openai_compat_base_url(provider, settings)
+            client = AsyncOpenAI(base_url=base_url, api_key=api_key)
             stream = await client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": "Hi"}],
@@ -294,8 +309,9 @@ async def stream_response(
 ) -> AsyncGenerator[str, None]:
     """Load current settings and stream using the configured provider/model."""
     settings = load_settings()
-    provider = settings.get("provider", "anthropic")
-    model = settings.get("model", PROVIDERS["anthropic"]["default_model"])
+    provider = settings.get("provider", _DEFAULT_SETTINGS["provider"])
+    p0 = PROVIDERS.get(provider) or PROVIDERS[_DEFAULT_SETTINGS["provider"]]
+    model = settings.get("model", p0["default_model"])
     api_key = get_api_key(provider, settings)
 
     if not api_key:
@@ -311,7 +327,8 @@ async def stream_response(
         async for text in _stream_anthropic(api_key, model, system, messages):
             yield text
     else:
+        base_url = resolve_openai_compat_base_url(provider, settings)
         async for text in _stream_openai_compat(
-            pconfig["base_url"], api_key, model, system, messages
+            base_url, api_key, model, system, messages
         ):
             yield text
